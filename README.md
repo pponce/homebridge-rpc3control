@@ -4,10 +4,9 @@
 
 Bring one or more BayTech RPC power distribution units into Apple Home through Homebridge. Give each outlet a normal On/Off switch or a **Power-aware reboot** switch that uses the PDU's own power-cycle command.
 
-Available on [npm](https://www.npmjs.com/package/homebridge-rpc3control) under the **beta** tag. This is an early beta; compatibility with every RPC model has not been verified.
+Install the stable release from [npm](https://www.npmjs.com/package/homebridge-rpc3control) or Homebridge UI. Compatibility with every RPC model has not been verified.
 
 ## Old hardware, new tricks
-
 
 Your BayTech RPC may come from the era of terminal windows and blinking rack lights, but it still has plenty of switches left to flip. Retirement? Let's give it a HomeKit invitation instead.
 
@@ -22,23 +21,23 @@ Requires Homebridge 1.8+ within version 1, or Homebridge 2.x, with Node.js 22.13
 ### Homebridge UI
 
 1. Open **Plugins** and search for **homebridge-rpc3control**.
-2. Install **RPC PDU Control**, choosing the **beta** tag or the desired beta version when offered. For an existing installation, use the plugin menu's **Manage Version** option (called **Install Previous Version** in some older UI versions) to choose a beta.
+2. Install **RPC PDU Control** using the default **latest** version. If you previously installed a beta, use the plugin menu's **Manage Version** option (called **Install Previous Version** in some older UI versions) and select **latest** to switch to the stable release.
 3. Open the plugin's **Settings**, configure your PDUs and outlets, and save.
 4. Restart Homebridge through its UI.
 
-If this beta-only package does not appear in search, install it using the terminal command below, then return to the UI to configure it.
+If the package does not appear in search yet, install it using the terminal command below, then return to the UI to configure it.
 
-### Terminal: install the npm beta with hb-service
+### Terminal: install from npm with hb-service
 
 For a Linux Homebridge installation managed by `hb-service`, run this in a terminal on the Homebridge host. It installs the package from npm into Homebridge's plugin location. You do not need an npm account to install it.
 
 ```bash
 {
-  echo "===== START: INSTALL RPC PDU CONTROL BETA ====="
+  echo "===== START: INSTALL RPC PDU CONTROL ====="
   if bash -c '
 set -e
 set -o pipefail
-sudo hb-service add homebridge-rpc3control@beta
+sudo hb-service add homebridge-rpc3control@latest
 '; then
     echo "===== END: INSTALL COMMAND FINISHED; CHECK OUTPUT, THEN CONFIGURE AND RESTART IN HOMEBRIDGE UI ====="
   else
@@ -49,10 +48,9 @@ sudo hb-service add homebridge-rpc3control@beta
 
 When using a Homebridge UI terminal that already has the required privileges, omit `sudo`. If your installation does not support `hb-service add`, use Homebridge UI's plugin installer. This command does not restart Homebridge: check the installation output, then configure and restart through the UI.
 
-Use the same command to update to the newest published beta. To install a specific release, replace `@beta` with its full version, for example `@0.1.0-beta.1`. Selecting the beta channel allows you to test updates before a stable release.
+Use the same command to update to the newest stable release or switch from a beta to stable. To install a specific release, replace `@latest` with its full version, for example `@0.1.0`. Save your configuration and restart Homebridge after updating.
 
 ## Configuration
-
 
 Open **RPC PDU Control → Settings** in Homebridge UI:
 
@@ -114,7 +112,6 @@ Recovery check delay controls when the plugin starts checking after a power-awar
 
 ### PDU settings (JSON reference)
 
-
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `id` | Required | Permanent unique ID: 1-64 letters, digits, `_` or `-`. Changing it recreates accessories. |
@@ -145,7 +142,6 @@ Identity uses PDU ID, number, and mode. Renaming/reordering preserves identity; 
 
 ## What power-aware reboot does
 
-
 Both switch options display the actual outlet power state. **Power (On / Off)** behaves like a normal power switch. **Power-aware reboot** has these actions:
 
 | Confirmed outlet state | HomeKit request | PDU action |
@@ -171,7 +167,7 @@ After an accepted or uncertain action, the plugin waits for the configured **Rec
 
 ### Upgrading from beta.1
 
-**beta.2 replaces the momentary reboot behavior.** The stored mode remains `reboot`, preserving accessory identity, but an existing reboot switch now displays power state and reboots on an **Off** request while the outlet is On. Update any Siri phrases, scenes, or automations that previously requested On to reboot.
+**Stable releases retain the power-aware behavior introduced in beta.2.** If you are upgrading directly from beta.1, the stored mode remains `reboot`, preserving accessory identity, but an existing reboot switch now displays power state and reboots on an **Off** request while the outlet is On. Update any Siri phrases, scenes, or automations that previously requested On to reboot.
 
 The legacy JSON key `resetAfterMs` is retained, but now means **delay before checking recovery**, not a forced display reset. Its UI label is “Recovery check delay.” After restart, both modes discover real state; no saved reboot request is replayed.
 

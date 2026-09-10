@@ -37,12 +37,16 @@ The GitHub reference has one RPC-3 path, not explicit per-model branches. Numeri
 
 See [PLAN.md](PLAN.md) for agreed scope and implementation status.
 
-## Publishing a beta
+## Publishing a stable release
 
-The package is published to npm; the maintainer's npm account is **klidec** and the GitHub owner is **pponce**. Publication is manual. GitHub Actions validates changes and creates package artifacts; it does not publish or modify a running Homebridge installation.
+The maintainer's npm account is **klidec** and the GitHub owner is **pponce**. GitHub Actions validates changes and creates package artifacts; publication is performed explicitly from the maintainer's terminal.
 
-Keep `package.json` and `src/settings.ts` versions in sync, update the changelog, and push the intended commit to `main`. Version **0.1.0-beta.2** already includes power-aware reboot and the installation documentation refresh. Check npm before deciding whether another increment is needed: an already-published version cannot be reused.
+Keep `package.json` and `src/settings.ts` versions in sync. Use a plain version such as `0.1.0`, set `publishConfig.tag` to `latest`, update CHANGELOG.md, and add `releases/v<VERSION>.md` with the release notes. Commit and push the intended changes to `main`.
 
-From a clean `main` checkout synchronized with `origin/main`, run `bash scripts/publish-beta.sh`. It verifies the npm account and version, creates a separate release directory from the committed tree, installs development dependencies, runs compiler and behavior checks, validates the packed artifact, and publishes that exact archive with `--tag beta --access public`. The normal working checkout is not used for build outputs or installation changes. The script keeps the release directory and prints its path.
+From a clean, synchronized `main` checkout, run `bash scripts/publish-release.sh`. It verifies the npm/GitHub accounts, remote commit, and available version/tag before creating a separate release directory from the committed tree. It installs development dependencies, runs compiler and behavior tests, validates the packed artifact, and publishes that archive publicly under `latest`. It then creates a non-prerelease GitHub release at the same source commit, attaches the npm archive, and marks the release as latest. It does not install or restart Homebridge.
 
-The package's publication defaults also select the public registry and beta tag, so a beta does not become `latest` accidentally. The script does not increment the version, update the running Homebridge service, create a Git tag, or publish a GitHub release. Browser checks run in CI; they may also be run locally using the command above.
+Publication of a version is permanent. An already-published npm version or existing GitHub release makes the preflight stop. If npm publication succeeds but GitHub creation fails, use the exact GitHub recovery command printed by the script; do not publish the npm version again. The temporary release directory is retained, including the notes and checked archive needed by that command.
+
+Browser checks run in CI and can also be run locally as described above. Physical hardware validation status is independent of selecting the stable release channel; other PDU models remain unverified until user feedback.
+
+The older `scripts/publish-beta.sh` remains available for future prereleases. It intentionally rejects a stable version and requires beta publication defaults; prepare a separate prerelease version before using it again.

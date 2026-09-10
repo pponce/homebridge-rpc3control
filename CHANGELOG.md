@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0
+
+- First stable release, promoting the beta.2 functionality without changing outlet behavior or configuration.
+- Normal On/Off and power-aware reboot switches for one or more RPC PDUs, with direct Telnet control and native autonomous reboot.
+- Homebridge UI configuration, read-only connection previews, shared status caching, and adjustable polling/recovery timers.
+- Installation instructions now use the stable npm `latest` channel, including migration from beta installations.
+- Added a checked stable release script that publishes the tested npm archive and creates the matching GitHub release.
+
 ## 0.1.0-beta.2
 
 - Added npm beta installation instructions for Homebridge UI and `hb-service add`; moved contributor guidance to DEVELOPMENT.md.
