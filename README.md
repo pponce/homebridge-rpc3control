@@ -1,8 +1,8 @@
 <p align="Left">
   <img src="https://raw.githubusercontent.com/pponce/homebridge-rpc3control/main/assets/homebridge-rpc3control-icon-512.png" alt="RPC PDU Control icon" width="128" height="128">
-
-# homebridge-rpc3control
 </p>
+# homebridge-rpc3control
+
 ![BayTech RPC power distribution unit](https://raw.githubusercontent.com/pponce/homebridge-rpc3control/main/assets/BayTech-PDU-Shot.jpg)
 
 Bring one or more BayTech RPC power distribution units into Apple Home through Homebridge. Give each outlet a normal On/Off switch or a **Power-aware reboot** switch that uses the PDU's own power-cycle command.
