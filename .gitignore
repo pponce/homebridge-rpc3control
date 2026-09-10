@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tgz
+.env
+.env.*
+.credentials
+config.json
+config.local.*
+.DS_Store
