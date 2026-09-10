@@ -11,7 +11,7 @@
     "noUnusedParameters": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "verbatimModuleSyntax": true,
+    
     "skipLibCheck": true,
     "types": ["node"]
   },

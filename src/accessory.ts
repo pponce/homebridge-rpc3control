@@ -42,7 +42,8 @@ export class OutletAccessory {
       this.service.updateCharacteristic(Characteristic.On, this.communicationError());
       this.unsubscribe = controller.subscribe(status => {
         const entry = status?.get(outlet.number);
-        this.service.updateCharacteristic(Characteristic.On, entry ? entry.on : this.communicationError());
+        if (entry) this.service.updateCharacteristic(Characteristic.On, entry.on);
+        else this.service.updateCharacteristic(Characteristic.On, this.communicationError());
       });
     }
   }
