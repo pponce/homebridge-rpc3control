@@ -138,6 +138,11 @@ export class TelnetTransport implements Transport {
       };
       const timer = setTimeout(() => finish(undefined, new PduError('TIMEOUT', 'Expected PDU prompt did not arrive')), timeoutMs);
       this.wake = () => {
+        // Only an orderly peer close may leave a usable final response.
+        if (this.terminalError && this.terminalError.code !== 'CLOSED') {
+          finish(undefined, this.terminalError);
+          return;
+        }
         let best: { index: number; start: number; end: number } | undefined;
         for (const [index, pattern] of patterns.entries()) {
           const match = pattern.exec(this.buffer);

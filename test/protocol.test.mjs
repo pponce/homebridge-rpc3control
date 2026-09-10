@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createServer } from 'node:net';
 import { TelnetDecoder, TelnetTransport } from '../dist/telnet.js';
 import { RpcProtocol, parseStatus } from '../dist/protocol.js';
 import { fakePdu, config } from './fake-pdu.mjs';
@@ -79,3 +80,28 @@ test('transport rejects hanging reads on abort and closes the socket', async t =
   await assert.rejects(waiting, { code: 'TIMEOUT' });
   await transport.close();
 });
+
+
+for (const scenario of ['oversized', 'cancelled']) {
+  test(`transport never accepts buffered prompts after ${scenario} responses`, async t => {
+    const server = createServer(socket => {
+      socket.on('error', () => {});
+      socket.end(scenario === 'oversized' ? 'x'.repeat(65537) + 'RPC-3>' : 'ready>RPC-3>');
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const abort = new AbortController();
+    const transport = new TelnetTransport(abort.signal);
+    t.after(async () => {
+      await transport.close();
+      await new Promise(resolve => server.close(resolve));
+    });
+    await transport.connect('127.0.0.1', server.address().port, 500);
+    if (scenario === 'cancelled') {
+      await transport.expect([/ready>/], 1000);
+      abort.abort();
+    }
+    await assert.rejects(transport.expect([/RPC-3>/], 1000), {
+      code: scenario === 'oversized' ? 'PROTOCOL' : 'TIMEOUT',
+    });
+  });
+}
