@@ -1,13 +1,14 @@
 # homebridge-rpc3control: implementation plan
 
-Date: 2026-09-10. Status: initial implementation prepared; physical hardware validation and npm publication pending.
+Date: 2026-09-10. Status: initial beta published to npm; beta.2 implementation prepared; physical hardware validation remains pending.
 
 ## Implementation status
 
 - Implemented: TypeScript platform, UI schema, direct Telnet transport, optional login, configurable counts, stateful power, native reboot controls, queues, cache, backoff, shutdown, and stable accessory identities.
 - Automated verification: synthetic TCP PDUs, simulated Homebridge API lifecycle, and isolated npm archive loading. CI runs compiler checks and tests on Node 22 and 24.
 - Transport decision: evaluated telnet-client source and selected an incremental parser over Node net to handle split/embedded negotiation and prompts without runtime dependencies.
-- Pending: physical eight-outlet validation, live Homebridge/Home app validation, other-model feedback, and npm publication. Package remains private to prevent accidental publication.
+- Published: initial npm beta, as reported by the maintainer. Beta.2 is prepared for manual publication after registry/version checks.
+- Pending: physical eight-outlet validation, live Homebridge/Home app validation, and other-model feedback. Public npm publication defaults to the beta tag; the release script verifies the maintainer account and tests the artifact.
 - Only the GitHub Python reference was accessible. Any unpushed differences in the developer-local folder still need comparison before hardware testing.
 - Settings experience: implemented custom PDU cards, collapsed credentials/advanced options, conditional reboot delay, seconds-based controls backed by existing millisecond JSON, generated stable IDs, and non-destructive missing-outlet generation.
 - Read-only connection preview: explicit user action, status snapshot including Unknown rows, one active test per UI server, five-second cooldown, ten-second deadline. It can add one session alongside the platform worker. Uses the official Homebridge UI helper; the Telnet controller itself remains dependency-free.

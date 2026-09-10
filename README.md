@@ -2,11 +2,12 @@
 
 ![BayTech RPC power distribution unit](https://raw.githubusercontent.com/pponce/homebridge-rpc3control/main/assets/BayTech-PDU-Shot.jpg)
 
-A Homebridge platform plugin for one or more BayTech RPC PDUs using direct Telnet from TypeScript. Each configured outlet appears as a stateful power switch or a power-aware native reboot switch.
+Bring one or more BayTech RPC power distribution units into Apple Home through Homebridge. Give each outlet a normal On/Off switch or a **Power-aware reboot** switch that uses the PDU's own power-cycle command.
 
-**0.1.0-beta.2 development preview. Not published to npm.** Automated tests use simulated PDUs. Validation on the developer's physical eight-outlet RPC unit is pending. Other models are assumed to share the RPC menu and four-session limit but are not hardware-verified.
+Available on [npm](https://www.npmjs.com/package/homebridge-rpc3control) under the **beta** tag. This is an early beta; compatibility with every RPC model has not been verified.
 
 ## Old hardware, new tricks
+
 
 Your BayTech RPC may come from the era of terminal windows and blinking rack lights, but it still has plenty of switches left to flip. Retirement? Let's give it a HomeKit invitation instead.
 
@@ -14,64 +15,44 @@ This plugin brings that old workhorse into the Home app: tap to control an outle
 
 Same sturdy metal box. Same satisfying relay clicks. A few decidedly modern party tricks.
 
-## Features
+## Installation
 
-- Power On sends `on N`; Off sends `off N`. Confirmed status comes from the PDU.
-- **Power-aware reboot** displays actual outlet state. Request On while Off to power up; request Off while On to send **one native `reboot N` command**. The PDU handles power off and back on, even if that interrupts the network path.
-- Independent queues and shared status caches for multiple PDUs, with at most one active plugin session per PDU.
-- No Python, Pexpect, Script2, or Telnet executable. PDU control uses Node's TCP networking and an incremental Telnet parser. The settings server uses the official `@homebridge/plugin-ui-utils` package, installed automatically by npm.
-- Custom Homebridge settings with PDU cards, outlet generation, conditional reboot controls, and a read-only connection/status preview.
+Requires Homebridge 1.8+ within version 1, or Homebridge 2.x, with Node.js 22.13+ within version 22, or Node.js 24. Homebridge must be able to reach the PDU on your local network, normally TCP port 23. No Python, Pexpect, Script2, or separate Telnet program is required.
 
-## What power-aware reboot does
+### Homebridge UI
 
-Both switch options display the actual outlet power state. **Power (On / Off)** behaves like a normal power switch. **Power-aware reboot** has these actions:
+1. Open **Plugins** and search for **homebridge-rpc3control**.
+2. Install **RPC PDU Control**, choosing the **beta** tag or the desired beta version when offered. For an existing installation, use the plugin menu's **Manage Version** option (called **Install Previous Version** in some older UI versions) to choose a beta.
+3. Open the plugin's **Settings**, configure your PDUs and outlets, and save.
+4. Restart Homebridge through its UI.
 
-| Confirmed outlet state | HomeKit request | PDU action |
-| --- | --- | --- |
-| Off | On | Native `on N` to power up. |
-| On | Off | Native `reboot N` to cycle power. |
-| On | On | No power command; already On. |
-| Off | Off | No power command; already Off. |
+If this beta-only package does not appear in search, install it using the terminal command below, then return to the UI to configure it.
 
-The plugin checks fresh outlet status in the same queued Telnet session before choosing the action. Unknown status means no power action. The internal action names `ensure-on` and `reboot-if-on` are never sent to the PDU.
+### Terminal: install the npm beta with hb-service
 
-**Turning this switch Off means reboot, including Siri requests, scenes, and “turn everything off” automations.** Use the normal Power option when you need to leave an outlet switched off.
-
-### Rebooting network equipment
-
-The plugin sends the PDU’s native `reboot N` command, never an `off N` followed by a timer-driven `on N`. Once the PDU has received and accepted the native command, its own controller completes the off/on cycle without needing an internet connection, an Ethernet connection to Homebridge, or a running Homebridge process. This is essential when rebooting the switch/router carrying that connection, or the host running Homebridge itself.
-
-If the connection drops after transmission, the command may have been accepted even though its reply was lost. The plugin reports that uncertainty and **does not automatically resend reboot**. If the PDU never received the command, the plugin cannot guarantee that a reboot occurred.
-
-The HomeKit switch returns to **On when a subsequent status read confirms power is On**. During the cycle it can show Off if that is the confirmed state, or No Response while the PDU is unreachable. It never assumes success just because a timer expired. Power On does not mean the attached router/server has finished booting.
-
-After an accepted or uncertain action, the plugin waits for the configured **Recovery check delay** (default 3 seconds), then performs read-only verification. Further checks back off through 5, 10, 20, 40, and 60 seconds, with at most ten minutes of recovery attempts after the initial delay. Normal PDU failure cooldown also applies. Recovery works with regular polling disabled and stops when On is confirmed. Repeated/opposite writes are rejected while the action is pending or recovery is active, so an extra tap cannot interrupt the native cycle. After the recovery window expires, background recovery stops and a later user request checks fresh state again. Timers never send power commands.
-
-### Upgrading from beta.1
-
-**beta.2 replaces the momentary reboot behavior.** The stored mode remains `reboot`, preserving accessory identity, but an existing reboot switch now displays power state and reboots on an **Off** request while the outlet is On. Update any Siri phrases, scenes, or automations that previously requested On to reboot.
-
-The legacy JSON key `resetAfterMs` is retained, but now means **delay before checking recovery**, not a forced display reset. Its UI label is “Recovery check delay.” After restart, both modes discover real state; no saved reboot request is replayed.
-
-## Requirements and development installation
-
-Use Node 22.13+ within version 22, or Node 24; Homebridge 1.8+ within version 1, or Homebridge 2.x. Homebridge must reach the PDU's Telnet port, normally TCP 23.
+For a Linux Homebridge installation managed by `hb-service`, run this in a terminal on the Homebridge host. It installs the package from npm into Homebridge's plugin location. You do not need an npm account to install it.
 
 ```bash
-git clone git@github.com:pponce/homebridge-rpc3control.git
-cd homebridge-rpc3control
-npm install
-npm test
-npm link
+{
+  echo "===== START: INSTALL RPC PDU CONTROL BETA ====="
+  if bash -c '
+set -e
+set -o pipefail
+sudo hb-service add homebridge-rpc3control@beta
+'; then
+    echo "===== END: INSTALL COMMAND FINISHED; CHECK OUTPUT, THEN CONFIGURE AND RESTART IN HOMEBRIDGE UI ====="
+  else
+    echo "===== END: INSTALL STOPPED; SEE ERROR ABOVE; SSH SESSION REMAINS OPEN ====="
+  fi
+}
 ```
 
-For an existing checkout, run `git pull --ff-only` there first. `npm install` builds through `prepare`. Use the Node/npm installation and global npm prefix used by the Homebridge service; a link under another user's Node installation will not be discovered. Configure the plugin, then restart Homebridge through its UI.
+When using a Homebridge UI terminal that already has the required privileges, omit `sudo`. If your installation does not support `hb-service add`, use Homebridge UI's plugin installer. This command does not restart Homebridge: check the installation output, then configure and restart through the UI.
 
-`npm pack` creates `homebridge-rpc3control-0.1.0-beta.2.tgz` containing compiled JavaScript. Install this archive using npm in the Homebridge installation's plugin prefix. Archive consumers need no TypeScript or development dependencies. GitHub Actions uploads a package artifact after successful validation.
-
-The package remains `private: true` until hardware validation and an explicit npm release. This repository does not automatically publish or modify a live Homebridge installation.
+Use the same command to update to the newest published beta. To install a specific release, replace `@beta` with its full version, for example `@0.1.0-beta.1`. Selecting the beta channel allows you to test updates before a stable release.
 
 ## Configuration
+
 
 Open **RPC PDU Control → Settings** in Homebridge UI:
 
@@ -82,13 +63,13 @@ Open **RPC PDU Control → Settings** in Homebridge UI:
 5. Optionally expand **Test connection and preview outlet states**. This reads current status using your unsaved settings; it sends no outlet power commands. Missing rows display **Unknown**.
 6. Use Homebridge’s **Save** button, then restart Homebridge to apply the configuration.
 
-Advanced connection settings are collapsed by default. All timing controls display **seconds**, including fractional seconds; existing JSON still uses millisecond fields with no configuration migration. New PDUs receive a permanent ID automatically. Existing IDs, Homebridge child-bridge metadata, and unrecognized settings are preserved.
+Advanced connection settings are collapsed by default. All timing controls display **seconds**, including fractional seconds; existing JSON still uses millisecond fields with no configuration migration. New PDUs receive a permanent ID automatically.
 
 Connection tests run only when requested, allow one active test per settings server, enforce a five-second cooldown and a maximum ten-second session deadline, and close their sockets afterwards. The settings server is separate from the running platform and may use one additional PDU session during a test; other clients still share the device session limit. Previewing never saves configuration or changes an outlet.
 
-The screen adapts to narrow displays and uses Homebridge’s injected theme styles. Chromium tests exercise it with a simulated Homebridge UI bridge; validation in a running Homebridge installation is still pending.
+### Optional JSON configuration
 
-For manual JSON configuration, add this entry to the Homebridge `platforms` array:
+If you prefer editing configuration directly, add this entry to the Homebridge `platforms` array:
 
 ```json
 {
@@ -114,7 +95,25 @@ For manual JSON configuration, add this entry to the Homebridge `platforms` arra
 
 Replace the example address and credentials. Add one `pdus` entry per device. Credentials are sent only when requested, and are not stored in accessory context or logs. Telnet itself is unencrypted; use a trusted local network.
 
-### PDU settings
+### Gentle status updates for older hardware
+
+For outlets that rarely change, these settings reduce routine traffic. Enter these values in the UI's advanced settings; all values below are **seconds**.
+
+| Setting | Default | Suggested for occasional use |
+| --- | --- | --- |
+| Polling interval | 60 | **0** (disable periodic polling) |
+| Status cache lifetime | 15 | **60** |
+| Connection timeout | 3 | **3** |
+| Operation timeout | 8 | **8** |
+| Queue wait timeout | 3 | **3** |
+| Recovery check delay (reboot outlets) | 3 | **3** |
+
+With polling disabled, the plugin still reads status at startup, refreshes expired cached status when HomeKit requests it, and verifies actions. Several outlets share one status refresh. Opening Home normally prompts status requests, but Apple Home controls when it asks; an external change can remain visible as the old state while the cache is valid. Choose periodic polling if you need regular updates without opening Home.
+
+Recovery check delay controls when the plugin starts checking after a power-aware action. **It does not control how long the PDU keeps power off**, and no plugin timer turns the outlet back on.
+
+### PDU settings (JSON reference)
+
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -131,7 +130,7 @@ Replace the example address and credentials. Add one `pdus` entry per device. Cr
 | `operationTimeoutMs` | `8000` | Whole login/operation session deadline. |
 | `queueTimeoutMs` | `3000` | Maximum wait before starting. Expired queued commands are not sent. |
 
-PDUs with either switch mode receive an initial status read even if recurring polling is disabled. Reads after cache expiry share a refresh. The polling interval applies to both modes; use 0 for on-demand status plus action recovery only. Long timeouts can exceed HomeKit's response deadline; start with defaults. Pending queue depth is bounded at 32, response buffers at 64 KiB.
+PDUs with either switch mode receive an initial status read even if recurring polling is disabled. Reads after cache expiry share a refresh. The polling interval applies to both modes; use 0 for on-demand status plus action recovery only. Long timeouts can exceed HomeKit's response deadline; start with defaults.
 
 ### Outlet settings
 
@@ -144,41 +143,44 @@ PDUs with either switch mode receive an initial status read even if recurring po
 
 Identity uses PDU ID, number, and mode. Renaming/reordering preserves identity; changing mode replaces the accessory and may require updating Home automations. Removing an outlet or PDU from valid configuration removes its accessories. Invalid configuration preserves cached accessories but makes their handlers unavailable.
 
-## Commands and outages
+## What power-aware reboot does
 
-- Complete login/operation/logout transactions are serialized per PDU. Other clients still share the assumed four-session device limit.
-- User writes take precedence over pending polling; writes remain FIFO. Reads are coalesced across outlets.
-- Writes invalidate the cache. Normal power commands request immediate shared verification; power-aware actions use delayed, bounded read-only recovery. A fresh confirmed no-op needs no extra verification. Requested HomeKit values and confirmed controller state are distinct.
-- Missing rows and failed reads produce communication errors, not an invented Off state. Home may retain its last display until processing an update/error.
-- Failures trigger a 5-second cooldown, doubling up to 5 minutes. Queued work fails rather than creating reconnect storms. Later reads/polls reconnect after cooldown.
-- Writes are never automatically retried. A timeout/disconnect after transmission means **uncertain**: the PDU may have acted. Check before manually repeating a reboot.
-- Power-aware reboot rejects duplicate/opposite writes while pending or recovering. The displayed state always follows confirmed status; an uncertain command is not replayed.
-- Restart discovers actual state for both switch modes without replaying commands. Shutdown cancels recovery timers and queued work, and closes active connections.
 
-## Verification
+Both switch options display the actual outlet power state. **Power (On / Off)** behaves like a normal power switch. **Power-aware reboot** has these actions:
 
-```bash
-npm run lint
-npm test
-npm pack
-node scripts/check-package.mjs
-```
+| Confirmed outlet state | HomeKit request | PDU action |
+| --- | --- | --- |
+| Off | On | Native `on N` to power up. |
+| On | Off | Native `reboot N` to cycle power. |
+| On | On | No power command; already On. |
+| Off | Off | No power command; already Off. |
 
-`lint` performs strict TypeScript checks including unused code. Tests use Node's test runner and local TCP servers, never physical PDUs. They cover optional login, wakeup/menu fallback, fragmented negotiation/prompts, configurable counts, parsing, queue/cache races, failures, deadlines, reboot timers/suppression, and accessory lifecycle with a simulated Homebridge API.
+The plugin checks fresh outlet status before choosing the action. Unknown status means no power action.
 
-The package check extracts the archive into an isolated directory, checks core plugin loading/registration without installed dependencies, and verifies that all custom UI assets are included. The settings server dependency is installed automatically by npm. CI runs compiler checks, tests, and packaging on Node 22 and 24. Tests also cover the settings server through the real Homebridge UI IPC helper, configuration round-tripping, read-only previews, and Chromium interactions on desktop/mobile widths. Run `npx playwright install chromium` followed by `npm run test:ui` for browser checks. Simulated API/browser tests and package loading do not replace a complete live Homebridge/Home app test.
+**Turning this switch Off means reboot, including Siri requests, scenes, and “turn everything off” automations.** Use the normal Power option when you need to leave an outlet switched off.
 
-### Hardware validation still required
+### Rebooting network equipment
 
-On the owned eight-outlet unit, use a selected noncritical load to verify status, On/Off, one native reboot triggered by an Off request, confirmed return to On, duplicate suppression, loss of the command/reply network path, and identity after restart. Verify the PDU restores power autonomously even when Homebridge cannot communicate during the cycle. Coordinate tests that could affect the SSH host or network. Avoid running the legacy integration against the same outlets during initial validation. Other models will be assessed when users provide feedback and sanitized output.
+The plugin sends the PDU’s native `reboot N` command, never an `off N` followed by a timer-driven `on N`. Once the PDU has received and accepted the native command, its own controller completes the off/on cycle without needing an internet connection, an Ethernet connection to Homebridge, or a running Homebridge process. This is essential when rebooting the switch/router carrying that connection, or the host running Homebridge itself.
 
-## Protocol reference
+If the connection drops after transmission, the command may have been accepted even though its reply was lost. The plugin reports that uncertainty and **does not automatically resend reboot**. If the PDU never received the command, the plugin cannot guarantee that a reboot occurred.
 
-Based on [pponce/rpc3control](https://github.com/pponce/rpc3control/blob/master/rpc3Control.py), reviewed blob `62060ec220186c68c9b5665b0d75aa5efe9a12b4`: optional login, selection `1`, RPC prompt, `on/off/reboot N`, `MENU`, logout `6`. The third numeric field remains the physical outlet number; names with spaces are also accepted. A returned RPC prompt without a recognized error means acceptance, subject to hardware validation.
+The HomeKit switch returns to **On when a subsequent status read confirms power is On**. During the cycle it can show Off if that is the confirmed state, or No Response while the PDU is unreachable. It never assumes success just because a timer expired. Power On does not mean the attached router/server has finished booting.
 
-The GitHub reference has one RPC-3 path, not explicit per-model branches. Numeric RPC model suffixes are accepted under the same-UI assumption. The developer-local reference folder is inaccessible from the implementation environment; unpushed differences have not been compared.
+After an accepted or uncertain action, the plugin waits for the configured **Recovery check delay** (default 3 seconds), then performs read-only verification. Further checks become less frequent if the device is unavailable and stop after at most ten minutes beyond the initial delay. Recovery works with regular polling disabled and stops when On is confirmed. Repeated/opposite writes are rejected while the action is pending or recovery is active, so an extra tap cannot interrupt the native cycle. After the recovery window expires, background recovery stops and a later user request checks fresh state again. Timers never send power commands.
 
-[telnet-client](https://github.com/mkozjak/node-telnet-client/blob/master/src/index.ts) was evaluated. Its inspected login/negotiation paths make chunk-boundary assumptions, so this plugin uses a bounded incremental parser built on Node's standard library. It handles embedded/split IAC negotiation, echo, suppress-go-ahead, escaped IAC, and rejected unsupported options under [RFC 854](https://www.rfc-editor.org/rfc/rfc854). It does not emulate a general terminal or automatically answer confirmation/pagination prompts absent from the reference UI.
+### Upgrading from beta.1
 
-See [PLAN.md](PLAN.md) for agreed scope and implementation status.
+**beta.2 replaces the momentary reboot behavior.** The stored mode remains `reboot`, preserving accessory identity, but an existing reboot switch now displays power state and reboots on an **Off** request while the outlet is On. Update any Siri phrases, scenes, or automations that previously requested On to reboot.
 
+The legacy JSON key `resetAfterMs` is retained, but now means **delay before checking recovery**, not a forced display reset. Its UI label is “Recovery check delay.” After restart, both modes discover real state; no saved reboot request is replayed.
+
+## Troubleshooting and compatibility
+
+- **No Response or Unknown:** check the PDU address, port, credentials, and local network path. Failed reads are not treated as proof that an outlet is Off. After connection failures, retries slow down to avoid repeatedly hitting the device.
+- **Too many Telnet sessions:** the plugin uses at most one active control session per PDU. A manual connection preview can use one additional session. Other clients share the assumed four-session device limit; close unused Telnet sessions.
+- **Reboot interrupted the network:** the PDU completes an accepted native reboot itself. Home may show No Response until the network returns. An uncertain command is not automatically sent again; check the equipment before manually repeating it.
+- **Outlets missing from Home:** confirm the total physical outlet count and add the outlet entries you want exposed. Save and restart Homebridge.
+- **Another RPC model:** devices are assumed to share the RPC menu and native commands. Other models remain unverified; support for a configurable outlet count is not a guarantee of model compatibility.
+
+For help, [open a GitHub issue](https://github.com/pponce/homebridge-rpc3control/issues) with your PDU model, plugin version, Homebridge/Node versions, and relevant logs. Remove passwords and other private details before sharing.

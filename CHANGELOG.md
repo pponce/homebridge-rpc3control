@@ -2,6 +2,9 @@
 
 ## 0.1.0-beta.2
 
+- Added npm beta installation instructions for Homebridge UI and `hb-service add`; moved contributor guidance to DEVELOPMENT.md.
+- Added a checked beta-publishing script and public beta publication defaults.
+
 - **Behavior change:** `reboot` is now Power-aware reboot. It displays actual power state; On powers up an Off outlet, and Off reboots an On outlet. Matching requests are no-ops. Update beta.1 Siri/scenes that previously requested On to reboot.
 - Fresh-state decision and native command share one queued Telnet session. Missing status prevents action.
 - Reboot always uses native `reboot N`: the PDU restores power autonomously through network loss. No timer sends an On command and uncertain writes are never automatically replayed.
@@ -21,4 +24,4 @@
 - Stateful power and native reboot switches with configurable display reset timers.
 - Deadlines, cleanup, backoff, uncertain-write reporting, duplicate suppression.
 - Simulated PDU/Homebridge tests and npm package smoke validation.
-- Physical PDU validation, live Homebridge validation, and npm publication pending.
+- Published as the initial npm beta. Physical PDU and live Homebridge validation remain pending.
