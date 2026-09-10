@@ -1,7 +1,6 @@
 <p align="Left">
   <img src="https://raw.githubusercontent.com/pponce/homebridge-rpc3control/main/assets/homebridge-rpc3control-icon-512.png" alt="RPC PDU Control icon" width="128" height="128">
 
-
 # homebridge-rpc3control
 </p>
 ![BayTech RPC power distribution unit](https://raw.githubusercontent.com/pponce/homebridge-rpc3control/main/assets/BayTech-PDU-Shot.jpg)
