@@ -7,21 +7,51 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "config.schema.json", "README.md", "CHANGELOG.md", "LICENSE"],
-  "keywords": ["homebridge-plugin", "supports-hap", "baytech", "rpc3", "pdu"],
+  "files": [
+    "dist",
+    "config.schema.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "homebridge-ui"
+  ],
+  "keywords": [
+    "homebridge-plugin",
+    "supports-hap",
+    "baytech",
+    "rpc3",
+    "pdu"
+  ],
   "author": "Pedro Ponce de Leon",
   "license": "MIT",
-  "repository": {"type": "git", "url": "git+https://github.com/pponce/homebridge-rpc3control.git"},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pponce/homebridge-rpc3control.git"
+  },
   "homepage": "https://github.com/pponce/homebridge-rpc3control#readme",
-  "bugs": {"url": "https://github.com/pponce/homebridge-rpc3control/issues"},
-  "engines": {"node": "^22.13.0 || ^24.0.0", "homebridge": "^1.8.0 || ^2.0.0"},
+  "bugs": {
+    "url": "https://github.com/pponce/homebridge-rpc3control/issues"
+  },
+  "engines": {
+    "node": "^22.13.0 || ^24.0.0",
+    "homebridge": "^1.8.0 || ^2.0.0"
+  },
   "scripts": {
     "build": "node scripts/clean.mjs && tsc",
     "lint": "tsc --noEmit",
     "test": "npm run build && node --test test/*.test.mjs",
     "prepare": "npm run build",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run lint && npm test"
+    "prepublishOnly": "npm run lint && npm test",
+    "test:ui": "node --test test/ui.browser.mjs"
   },
-  "devDependencies": {"@types/node": "^24.0.0", "homebridge": "^2.4.0", "typescript": "5.9.3"}
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "homebridge": "^2.4.0",
+    "typescript": "5.9.3",
+    "playwright": "^1.56.1"
+  },
+  "dependencies": {
+    "@homebridge/plugin-ui-utils": "^2.2.6"
+  }
 }

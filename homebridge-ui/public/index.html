@@ -1,0 +1,16 @@
+<link rel="stylesheet" href="style.css">
+<main id="rpc-settings" class="rpc-settings">
+  <header class="rpc-intro">
+    <span class="rpc-eyebrow">OLD HARDWARE, NEW TRICKS</span>
+    <h2>Meet your smarter power rack.</h2>
+    <p>Give your BayTech RPC outlets a home in HomeKit. Set up a PDU, choose your switches, and let the relay clicks begin.</p>
+  </header>
+  <div id="rpc-message" class="alert alert-info" role="status" aria-live="polite">Loading your settings…</div>
+  <form id="rpc-form" novalidate>
+    <div id="rpc-platform"></div>
+    <div id="rpc-pdus"></div>
+    <button id="rpc-add-pdu" type="button" class="btn btn-primary">Add PDU</button>
+  </form>
+  <p class="rpc-footer">Use Homebridge’s Save button to keep your changes, then restart Homebridge to apply them.</p>
+</main>
+<script type="module" src="app.js"></script>

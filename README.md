@@ -19,7 +19,8 @@ Same sturdy metal box. Same satisfying relay clicks. A few decidedly modern part
 - Power On sends `on N`; Off sends `off N`. Confirmed status comes from the PDU.
 - Reboot sends **one native `reboot N` command**. The PDU handles power off and back on; a separate timer resets only the displayed switch.
 - Independent queues and shared status caches for multiple PDUs, with at most one active plugin session per PDU.
-- No Python, Pexpect, Script2, Telnet executable, or runtime npm dependencies. Uses Node's TCP networking and an incremental Telnet parser.
+- No Python, Pexpect, Script2, or Telnet executable. PDU control uses Node's TCP networking and an incremental Telnet parser. The settings server uses the official `@homebridge/plugin-ui-utils` package, installed automatically by npm.
+- Custom Homebridge settings with PDU cards, outlet generation, conditional reboot controls, and a read-only connection/status preview.
 
 The reboot reset delay does not change the physical power-off duration or indicate when equipment finishes booting. The plugin never substitutes a delayed `off`/`on` pair for native reboot.
 
@@ -43,7 +44,22 @@ The package remains `private: true` until hardware validation and an explicit np
 
 ## Configuration
 
-Use **RPC PDU Control** in Homebridge UI or add this entry to the Homebridge `platforms` array:
+Open **RPC PDU Control → Settings** in Homebridge UI:
+
+1. **Add PDU**, give it a name, and enter its IP address and total physical outlet count.
+2. Expand **Login credentials** if your PDU requires them.
+3. Click **Add missing outlets** to create entries for the configured physical numbers. Existing names, behavior, and delays are preserved. Remove entries you do not want exposed; reducing the count never silently deletes switches.
+4. Choose **Power (On / Off)** or **Reboot (momentary)** for each outlet. The reboot reset field appears only for reboot switches.
+5. Optionally expand **Test connection and preview outlet states**. This reads current status using your unsaved settings; it sends no outlet power commands. Missing rows display **Unknown**.
+6. Use Homebridge’s **Save** button, then restart Homebridge to apply the configuration.
+
+Advanced connection settings are collapsed by default. All timing controls display **seconds**, including fractional seconds; existing JSON still uses millisecond fields with no configuration migration. New PDUs receive a permanent ID automatically. Existing IDs, Homebridge child-bridge metadata, and unrecognized settings are preserved.
+
+Connection tests run only when requested, allow one active test per settings server, enforce a five-second cooldown and a maximum ten-second session deadline, and close their sockets afterwards. The settings server is separate from the running platform and may use one additional PDU session during a test; other clients still share the device session limit. Previewing never saves configuration or changes an outlet.
+
+The screen adapts to narrow displays and uses Homebridge’s injected theme styles. Chromium tests exercise it with a simulated Homebridge UI bridge; validation in a running Homebridge installation is still pending.
+
+For manual JSON configuration, add this entry to the Homebridge `platforms` array:
 
 ```json
 {
@@ -121,7 +137,7 @@ node scripts/check-package.mjs
 
 `lint` performs strict TypeScript checks including unused code. Tests use Node's test runner and local TCP servers, never physical PDUs. They cover optional login, wakeup/menu fallback, fragmented negotiation/prompts, configurable counts, parsing, queue/cache races, failures, deadlines, reboot timers/suppression, and accessory lifecycle with a simulated Homebridge API.
 
-The package check extracts the archive into an isolated directory and checks loading/registration without installed runtime dependencies. CI runs compiler checks, tests, and packaging on Node 22 and 24. Simulated API tests and package loading do not replace a complete live Homebridge/Home app test.
+The package check extracts the archive into an isolated directory, checks core plugin loading/registration without installed dependencies, and verifies that all custom UI assets are included. The settings server dependency is installed automatically by npm. CI runs compiler checks, tests, and packaging on Node 22 and 24. Tests also cover the settings server through the real Homebridge UI IPC helper, configuration round-tripping, read-only previews, and Chromium interactions on desktop/mobile widths. Run `npx playwright install chromium` followed by `npm run test:ui` for browser checks. Simulated API/browser tests and package loading do not replace a complete live Homebridge/Home app test.
 
 ### Hardware validation still required
 
@@ -136,3 +152,4 @@ The GitHub reference has one RPC-3 path, not explicit per-model branches. Numeri
 [telnet-client](https://github.com/mkozjak/node-telnet-client/blob/master/src/index.ts) was evaluated. Its inspected login/negotiation paths make chunk-boundary assumptions, so this plugin uses a bounded incremental parser built on Node's standard library. It handles embedded/split IAC negotiation, echo, suppress-go-ahead, escaped IAC, and rejected unsupported options under [RFC 854](https://www.rfc-editor.org/rfc/rfc854). It does not emulate a general terminal or automatically answer confirmation/pagination prompts absent from the reference UI.
 
 See [PLAN.md](PLAN.md) for agreed scope and implementation status.
+

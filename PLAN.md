@@ -9,6 +9,9 @@ Date: 2026-09-10. Status: initial implementation prepared; physical hardware val
 - Transport decision: evaluated telnet-client source and selected an incremental parser over Node net to handle split/embedded negotiation and prompts without runtime dependencies.
 - Pending: physical eight-outlet validation, live Homebridge/Home app validation, other-model feedback, and npm publication. Package remains private to prevent accidental publication.
 - Only the GitHub Python reference was accessible. Any unpushed differences in the developer-local folder still need comparison before hardware testing.
+- Settings experience: implemented custom PDU cards, collapsed credentials/advanced options, conditional reboot delay, seconds-based controls backed by existing millisecond JSON, generated stable IDs, and non-destructive missing-outlet generation.
+- Read-only connection preview: explicit user action, status snapshot including Unknown rows, one active test per UI server, five-second cooldown, ten-second deadline. It can add one session alongside the platform worker. Uses the official Homebridge UI helper; the Telnet controller itself remains dependency-free.
+- UI verification: model/preview regressions, real UI helper IPC tests, and a Chromium harness for validation/save behavior, metadata preservation, conditional fields, responsive layout, and text-safe status rendering. Live Homebridge and physical PDU validation remain pending.
 - Initial configuration limits: 1-256 outlets; one mode per configured outlet; reboot reset default 3000 ms. No physical reboot-duration setting.
 
 ## Goal and locations

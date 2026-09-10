@@ -6,37 +6,152 @@
   "schema": {
     "type": "object",
     "properties": {
-      "name": {"title": "Platform name", "type": "string", "default": "RPC PDU Control"},
+      "name": {
+        "title": "Platform name",
+        "type": "string",
+        "default": "RPC PDU Control"
+      },
       "pdus": {
-        "title": "PDUs", "type": "array", "items": {
-          "type": "object", "required": ["id", "name", "host", "outletCount", "outlets"],
+        "title": "PDUs",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name",
+            "host",
+            "outletCount",
+            "outlets"
+          ],
           "properties": {
-            "id": {"title": "Stable PDU ID", "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$", "description": "Choose a unique permanent ID such as rack-main. Changing it recreates the accessories."},
-            "name": {"title": "PDU name", "type": "string", "minLength": 1, "maxLength": 128},
-            "host": {"title": "IP address or hostname", "type": "string", "minLength": 1, "description": "Do not include telnet:// or a port."},
-            "port": {"title": "Telnet port", "type": "integer", "minimum": 1, "maximum": 65535, "default": 23},
-            "username": {"title": "Username (optional)", "type": "string", "maxLength": 256, "description": "Sent only when requested by the PDU."},
-            "password": {"title": "Password (optional)", "type": "string", "format": "password", "maxLength": 256},
-            "outletCount": {"title": "Total physical outlets", "type": "integer", "minimum": 1, "maximum": 256},
+            "id": {
+              "title": "Stable PDU ID",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "description": "Choose a unique permanent ID such as rack-main. Changing it recreates the accessories."
+            },
+            "name": {
+              "title": "PDU name",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "host": {
+              "title": "IP address or hostname",
+              "type": "string",
+              "minLength": 1,
+              "description": "Do not include telnet:// or a port."
+            },
+            "port": {
+              "title": "Telnet port",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 23
+            },
+            "username": {
+              "title": "Username (optional)",
+              "type": "string",
+              "maxLength": 256,
+              "description": "Sent only when requested by the PDU."
+            },
+            "password": {
+              "title": "Password (optional)",
+              "type": "string",
+              "format": "password",
+              "maxLength": 256
+            },
+            "outletCount": {
+              "title": "Total physical outlets",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
             "outlets": {
-              "title": "Outlet switches", "type": "array", "items": {
-                "type": "object", "required": ["number", "name", "mode"],
+              "title": "Outlet switches",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "name",
+                  "mode"
+                ],
                 "properties": {
-                  "number": {"title": "Physical outlet number", "type": "integer", "minimum": 1, "maximum": 256},
-                  "name": {"title": "Switch name", "type": "string", "minLength": 1, "maxLength": 128},
-                  "mode": {"title": "Switch behavior", "type": "string", "enum": ["power", "reboot"], "default": "power", "description": "power: actual On/Off state. reboot: turn On to power-cycle once, then reset the switch display."},
-                  "resetAfterMs": {"title": "Switch reset delay (milliseconds)", "type": "integer", "minimum": 100, "maximum": 3600000, "default": 3000, "description": "Reboot mode only. Controls when the switch display returns to Off after acceptance; does not change the physical reboot duration."}
+                  "number": {
+                    "title": "Physical outlet number",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 256
+                  },
+                  "name": {
+                    "title": "Switch name",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "mode": {
+                    "title": "Switch behavior",
+                    "type": "string",
+                    "enum": [
+                      "power",
+                      "reboot"
+                    ],
+                    "default": "power",
+                    "description": "power: actual On/Off state. reboot: turn On to power-cycle once, then reset the switch display."
+                  },
+                  "resetAfterMs": {
+                    "title": "Switch reset delay (milliseconds)",
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 3600000,
+                    "default": 3000,
+                    "description": "Reboot mode only. Controls when the switch display returns to Off after acceptance; does not change the physical reboot duration."
+                  }
                 }
               }
             },
-            "pollingIntervalMs": {"title": "Status polling interval (milliseconds)", "type": "integer", "default": 60000, "minimum": 0, "maximum": 86400000, "description": "0 disables recurring polling; otherwise use at least 5000. Power outlets still refresh on startup and when read."},
-            "cacheTtlMs": {"title": "Status cache lifetime (milliseconds)", "type": "integer", "default": 15000, "minimum": 0, "maximum": 86400000},
-            "connectTimeoutMs": {"title": "Connection timeout (milliseconds)", "type": "integer", "default": 3000, "minimum": 100, "maximum": 30000},
-            "operationTimeoutMs": {"title": "Operation deadline (milliseconds)", "type": "integer", "default": 8000, "minimum": 500, "maximum": 30000, "description": "Whole session deadline. Long values may exceed the Home app response deadline."},
-            "queueTimeoutMs": {"title": "Queue wait limit (milliseconds)", "type": "integer", "default": 3000, "minimum": 100, "maximum": 30000}
+            "pollingIntervalMs": {
+              "title": "Status polling interval (milliseconds)",
+              "type": "integer",
+              "default": 60000,
+              "minimum": 0,
+              "maximum": 86400000,
+              "description": "0 disables recurring polling; otherwise use at least 5000. Power outlets still refresh on startup and when read."
+            },
+            "cacheTtlMs": {
+              "title": "Status cache lifetime (milliseconds)",
+              "type": "integer",
+              "default": 15000,
+              "minimum": 0,
+              "maximum": 86400000
+            },
+            "connectTimeoutMs": {
+              "title": "Connection timeout (milliseconds)",
+              "type": "integer",
+              "default": 3000,
+              "minimum": 100,
+              "maximum": 30000
+            },
+            "operationTimeoutMs": {
+              "title": "Operation deadline (milliseconds)",
+              "type": "integer",
+              "default": 8000,
+              "minimum": 500,
+              "maximum": 30000,
+              "description": "Whole session deadline. Long values may exceed the Home app response deadline."
+            },
+            "queueTimeoutMs": {
+              "title": "Queue wait limit (milliseconds)",
+              "type": "integer",
+              "default": 3000,
+              "minimum": 100,
+              "maximum": 30000
+            }
           }
         }
       }
     }
-  }
+  },
+  "customUi": true
 }

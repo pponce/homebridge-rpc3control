@@ -10,3 +10,5 @@ config.json
 config.local.*
 .DS_Store
 
+
+test-results/

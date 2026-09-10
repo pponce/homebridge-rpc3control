@@ -12,7 +12,10 @@ try {
   execFileSync('tar', ['-xzf', archive, '-C', folder]);
   const root = join(folder, 'package');
   const packed = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.deepEqual(Object.keys(packed.dependencies ?? {}), [], 'runtime must have no external dependencies');
+  assert.deepEqual(Object.keys(packed.dependencies ?? {}), ['@homebridge/plugin-ui-utils'], 'only the Homebridge settings server needs an external dependency');
+  for (const file of ['server.js', 'public/index.html', 'public/app.js', 'public/model.js', 'public/style.css']) {
+    assert.ok(readFileSync(join(root, 'homebridge-ui', file)).length, `missing custom UI asset: ${file}`);
+  }
   assert.equal(readdirSync(root).includes('node_modules'), false);
   assert.equal(readdirSync(root).includes('src'), false);
   const plugin = await import(pathToFileURL(join(root, packed.main)).href);
@@ -28,5 +31,6 @@ try {
   assert.equal(VERSION, packageJson.version);
   const schema = JSON.parse(readFileSync(join(root, 'config.schema.json'), 'utf8'));
   assert.equal(schema.pluginAlias, 'Rpc3Control');
-  console.log('PASS: packed plugin loads and registers with no Python, Telnet executable, or runtime npm dependencies.');
+  assert.equal(schema.customUi, true);
+  console.log('PASS: packed plugin loads and registers with no Python, Telnet executable, or installed runtime dependencies; custom UI assets are included.');
 } finally { rmSync(folder, { recursive: true, force: true }); }

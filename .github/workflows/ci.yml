@@ -20,7 +20,24 @@ jobs:
         if: always()
         run: echo "Installation/build status recorded above."
       - run: npm run lint
-      - run: npm test
+      - id: tests
+        run: node scripts/ci-command.mjs npm test
+      - name: "Test result: ${{ steps.tests.outputs.result }}"
+        if: always()
+        run: echo "Test status recorded above."
+      - if: matrix.node == 24
+        run: npx playwright install --with-deps chromium
+      - id: ui
+        if: matrix.node == 24
+        run: node scripts/ci-command.mjs npm run test:ui
+      - name: "Browser result: ${{ steps.ui.outputs.result }}"
+        if: always() && matrix.node == 24
+        run: echo "Browser test status recorded above."
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.node == 24
+        with:
+          name: settings-ui-screenshots
+          path: test-results/*.png
       - run: npm pack
       - run: node scripts/check-package.mjs
       - uses: actions/upload-artifact@v4

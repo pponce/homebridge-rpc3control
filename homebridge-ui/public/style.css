@@ -1,0 +1,33 @@
+.rpc-settings, .rpc-settings * { box-sizing: border-box; }
+.rpc-settings { max-width: 960px; margin: auto; padding: 0.25rem; color: var(--bs-body-color, inherit); }
+.rpc-intro { border-left: 4px solid #d99130; padding: 0.4rem 1.2rem; margin-bottom: 1.5rem; }
+.rpc-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.13em; }
+.rpc-intro h2 { margin: 0.45rem 0; font-size: 1.7rem; }
+.rpc-intro p, .rpc-footer { opacity: 0.8; }
+.rpc-pdu { margin: 1rem 0; padding: 1.15rem; border: 1px solid var(--bs-border-color, #8886); border-radius: 0.75rem; }
+.rpc-heading, .rpc-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; }
+.rpc-heading h3 { margin: 0; flex: 1; font-size: 1.2rem; }
+.rpc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 1.2rem; }
+.rpc-field { min-width: 0; margin-bottom: 0.75rem; }
+.rpc-field label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+.rpc-field small { display: block; opacity: 0.8; line-height: 1.45; margin-top: 0.3rem; }
+.rpc-field input, .rpc-field select { width: 100%; min-width: 0; }
+.rpc-settings details { border-top: 1px solid var(--bs-border-color, #8886); margin-top: 1rem; padding-top: 0.8rem; }
+.rpc-settings summary { cursor: pointer; font-weight: 600; padding-bottom: 0.75rem; }
+.rpc-outlets { display: grid; gap: 0.8rem; }
+.rpc-outlet { border: 1px solid var(--bs-border-color, #8886); border-radius: 0.5rem; padding: 0.85rem; }
+.rpc-outlet-grid { display: grid; grid-template-columns: 5rem minmax(8rem, 1fr) minmax(10rem, 1fr); gap: 0.8rem; }
+.rpc-outlet-actions { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.rpc-outlet-actions .rpc-field { flex: 1; }
+.rpc-settings [hidden] { display: none !important; }
+.rpc-preview { margin-top: 1rem; overflow-x: auto; }
+.rpc-preview th, .rpc-preview td { padding: 0.45rem; }
+.rpc-preview caption { caption-side: top; }
+.rpc-footer { margin-top: 1.2rem; font-size: 0.9rem; }
+.rpc-empty { padding: 1rem; border: 1px dashed #8888; border-radius: 0.5rem; margin-bottom: 1rem; }
+@media (max-width: 560px) {
+  .rpc-grid, .rpc-outlet-grid { grid-template-columns: 1fr; }
+  .rpc-pdu { padding: 0.8rem; }
+  .rpc-intro h2 { font-size: 1.4rem; }
+  .rpc-outlet-actions { flex-direction: column; }
+}
