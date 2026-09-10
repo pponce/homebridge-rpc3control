@@ -48,7 +48,8 @@ export class OutletAccessory {
   }
 
   private communicationError(): Error {
-    return new this.api.hap.HapStatusError(this.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    const hap = this.api.hap;
+    return new hap.HapStatusError(hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
   }
 
   async getOn(): Promise<boolean> {
@@ -59,7 +60,8 @@ export class OutletAccessory {
 
   async setOn(value: CharacteristicValue): Promise<void> {
     if (typeof value !== 'boolean' && value !== 0 && value !== 1) {
-      throw new this.api.hap.HapStatusError(this.api.hap.HAPStatus.INVALID_VALUE_IN_REQUEST);
+      const hap = this.api.hap;
+      throw new hap.HapStatusError(hap.HAPStatus.INVALID_VALUE_IN_REQUEST);
     }
     try {
       if (this.reboot) await this.reboot.set(Boolean(value));

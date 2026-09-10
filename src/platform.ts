@@ -28,10 +28,11 @@ export class Rpc3Platform implements DynamicPlatformPlugin {
     try { pdus = parseConfig(this.config.pdus); }
     catch (error) {
       this.log.error(`RPC PDU configuration rejected: ${safeError(error)}`);
+      const hap = this.api.hap;
       // Preserve cached accessories, but never expose stale values or accept writes.
       for (const accessory of this.cached.values()) {
         const on = accessory.getService(this.api.hap.Service.Switch)?.getCharacteristic(this.api.hap.Characteristic.On);
-        const fail = () => { throw new this.api.hap.HapStatusError(this.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE); };
+        const fail = () => { throw new hap.HapStatusError(hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE); };
         on?.onGet(fail).onSet(fail);
       }
       return;
