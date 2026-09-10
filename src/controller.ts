@@ -1,5 +1,6 @@
 import type { PduConfig } from './config.js';
-import { PduError } from './errors.js';
+import { PduError, reportError } from './errors.js';
+import type { ErrorReporter } from './errors.js';
 import { RpcProtocol } from './protocol.js';
 import type { Action, StatusMap } from './protocol.js';
 
@@ -12,7 +13,7 @@ interface Job {
   reject: (error: unknown) => void;
 }
 
-export type StatusListener = (status: StatusMap | undefined, error?: unknown) => void;
+export type StatusListener = (status: StatusMap | undefined, error?: unknown) => void | Promise<void>;
 export interface Protocol {
   execute(signal: AbortSignal, action?: Action, outlet?: number): Promise<StatusMap | undefined>;
 }
@@ -32,10 +33,12 @@ export class PduController {
   private retryAt = 0;
   private pollTimer?: ReturnType<typeof setTimeout>;
   private listeners = new Set<StatusListener>();
+  private report: ErrorReporter;
 
-  constructor(config: PduConfig, protocol: Protocol = new RpcProtocol(config)) {
+  constructor(config: PduConfig, protocol: Protocol = new RpcProtocol(config), report: ErrorReporter = console.error) {
     this.config = config;
     this.protocol = protocol;
+    this.report = report;
   }
 
   subscribe(listener: StatusListener): () => void {
@@ -44,7 +47,15 @@ export class PduController {
   }
 
   private notify(status?: StatusMap, error?: unknown): void {
-    for (const listener of this.listeners) listener(status, error);
+    // UI/listener failures are not PDU failures: preserve the operation result,
+    // continue notifying other outlets, and never recurse through notify to log.
+    for (const listener of this.listeners) {
+      try {
+        void Promise.resolve(listener(status, error)).catch(failure => {
+          reportError(this.report, 'PDU status callback failed', failure);
+        });
+      } catch (failure) { reportError(this.report, 'PDU status callback failed', failure); }
+    }
   }
 
   private invalidate(): void { this.cachedAt = 0; this.generation++; }
@@ -112,9 +123,11 @@ export class PduController {
   private async drain(): Promise<void> {
     if (this.running || this.stopped) return;
     this.running = true;
+    let activeJob: Job | undefined;
     try {
       while (this.queue.length && !this.stopped) {
         const job = this.queue.shift()!;
+        activeJob = job;
         clearTimeout(job.timer);
         if (Date.now() < this.retryAt) {
           job.reject(new PduError('BUSY', 'PDU is cooling down; request was not sent'));
@@ -139,13 +152,19 @@ export class PduController {
           this.cachedAt = 0;
           this.failureCount++;
           this.retryAt = Date.now() + Math.min(300000, 5000 * 2 ** Math.min(this.failureCount - 1, 6));
-          if (!this.stopped) this.notify(undefined, error);
           job.reject(error);
+          if (!this.stopped) this.notify(undefined, error);
         } finally {
           clearTimeout(deadline);
           this.abort = undefined;
         }
       }
+    } catch (error) {
+      // Last-resort boundary for the detached worker. Settle the active request
+      // and queued work without replaying any potentially transmitted action.
+      activeJob?.reject(error);
+      reportError(this.report, 'PDU worker stopped after an internal failure', error);
+      this.stop();
     } finally { this.running = false; }
   }
 
@@ -155,19 +174,23 @@ export class PduController {
       try { await this.getStatus(true); } catch { /* Failure is reported through subscriptions. */ }
       if (!this.stopped && this.config.pollingIntervalMs > 0) {
         const delay = Math.max(this.config.pollingIntervalMs, this.retryAt - Date.now());
-        this.pollTimer = setTimeout(() => void poll(), delay);
+        this.pollTimer = setTimeout(run, delay);
         this.pollTimer.unref();
       }
     };
+    const run = () => {
+      void poll().catch(error => reportError(this.report, 'PDU polling stopped after an internal failure', error));
+    };
     // Initial discovery remains useful even when recurring polling is disabled.
-    this.pollTimer = setTimeout(() => void poll(), offsetMs);
+    this.pollTimer = setTimeout(run, offsetMs);
     this.pollTimer.unref();
   }
 
   stop(): void {
     this.stopped = true;
     if (this.pollTimer) clearTimeout(this.pollTimer);
-    this.abort?.abort();
+    try { this.abort?.abort(); }
+    catch (error) { reportError(this.report, 'PDU session cancellation failed', error); }
     for (const job of this.queue.splice(0)) {
       clearTimeout(job.timer);
       job.reject(new PduError('STOPPED', 'PDU controller stopped before request was sent'));

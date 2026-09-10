@@ -84,3 +84,54 @@ test('queued commands expire before transmission', async t => {
   assert.deepEqual(server.commands, []);
 });
 
+
+test('throwing and rejecting status listeners cannot strand reads or break later operations', { timeout: 1500 }, async t => {
+  const messages = [];
+  const calls = [];
+  const states = new Map([[1, { number: 1, name: 'Outlet 1', on: true }]]);
+  const controller = new PduController(config(23), {
+    async execute(_signal, action) { calls.push(action); return action ? undefined : states; },
+  }, message => messages.push(message));
+  t.after(() => controller.stop());
+  controller.subscribe(() => { throw new Error('private credential sentinel'); });
+  controller.subscribe(async () => { throw new Error('private credential sentinel'); });
+  const healthyUpdates = [];
+  controller.subscribe(status => { healthyUpdates.push(status); });
+  assert.equal(await controller.getOutlet(1), true);
+  assert.equal(await controller.command(1, 'ensure-on'), true);
+  assert.equal(await controller.getOutlet(1), true);
+  await delay(0);
+  assert.deepEqual(calls, [undefined, 'ensure-on', undefined], 'listener failures do not introduce retries or cooldown');
+  assert.equal(healthyUpdates.length, 2);
+  assert.equal(messages.length, 4);
+  assert.ok(messages.every(message => message.includes('status callback failed') && !message.includes('sentinel')));
+});
+
+test('failing error listeners preserve the original rejection and notify remaining subscribers', { timeout: 1500 }, async t => {
+  const messages = [];
+  const failure = new Error('protocol failure sentinel');
+  const controller = new PduController(config(23), { async execute() { throw failure; } }, message => messages.push(message));
+  t.after(() => controller.stop());
+  controller.subscribe(() => { throw new Error('listener failure sentinel'); });
+  controller.subscribe(async () => { throw new Error('async listener failure sentinel'); });
+  let received;
+  controller.subscribe((_status, error) => { received = error; });
+  await assert.rejects(controller.getStatus(), error => error === failure);
+  await assert.rejects(controller.getStatus(), { code: 'BUSY' });
+  await delay(0);
+  assert.equal(received, failure);
+  assert.equal(messages.length, 2);
+  assert.ok(messages.every(message => !message.includes('sentinel')));
+});
+
+test('a throwing error logger cannot break status delivery', { timeout: 1500 }, async t => {
+  const fallback = t.mock.method(console, 'error', () => {});
+  const controller = new PduController(config(23), {
+    async execute() { return new Map([[1, { number: 1, name: 'Outlet 1', on: true }]]); },
+  }, () => { throw new Error('logger sentinel'); });
+  t.after(() => controller.stop());
+  controller.subscribe(() => { throw new Error('callback sentinel'); });
+  assert.equal(await controller.getOutlet(1), true);
+  assert.equal(fallback.mock.callCount(), 1);
+  assert.equal(fallback.mock.calls[0].arguments[0], 'PDU status callback failed: Unexpected internal error');
+});

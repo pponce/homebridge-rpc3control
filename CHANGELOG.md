@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+- Fixed unhandled status callback failures that could leave requests unresolved. Both synchronous exceptions and rejected callback promises are isolated, logged safely, and do not block other outlets or turn successful operations into PDU failures.
+- Guarded platform startup and cleanup. Failed accessory setup stops partial controllers, preserves cached accessories, and marks affected switches unavailable. Polling begins only after setup succeeds.
+- Guarded reboot recovery callbacks and background tasks while preserving read-only recovery and native PDU reboot behavior.
+- Added regression coverage for callback, startup, cleanup, and logging failures, including credential-safe diagnostics.
+- Added the plugin icon above the README title. No configuration migration is required.
+
 ## 0.1.0
 
 - First stable release, promoting the beta.2 functionality without changing outlet behavior or configuration.

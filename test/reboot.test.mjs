@@ -125,3 +125,37 @@ test('shutdown prevents queued actions and cancels read-only recovery', async t 
   assert.equal(reads, 0);
   assert.equal(commands, 1);
 });
+
+for (const asyncFailure of [false, true]) {
+  test(`recovery continues after a ${asyncFailure ? 'rejecting' : 'throwing'} unavailable callback`, async t => {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'] });
+    const messages = [];
+    let reads = 0;
+    let commands = 0;
+    const controller = {
+      async command() { commands++; return true; },
+      async getStatus() {
+        if (++reads === 1) throw new PduError('UNREACHABLE', 'offline');
+        return new Map([[1, { on: true }]]);
+      },
+    };
+    const unavailable = asyncFailure
+      ? async () => { throw new Error('private async callback sentinel'); }
+      : () => { throw new Error('private callback sentinel'); };
+    const reboot = new PowerAwareReboot(controller, 1, 100, unavailable, message => messages.push(message));
+    t.after(() => reboot.stop());
+    const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+    await reboot.set(false);
+    t.mock.timers.tick(100);
+    await flush();
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0], 'Outlet recovery callback failed: Unexpected internal error');
+    await assert.rejects(reboot.set(false), { code: 'BUSY' });
+    t.mock.timers.tick(5000);
+    await flush();
+    assert.equal(reads, 2);
+    assert.equal(commands, 1, 'recovery never retries a power command');
+    await reboot.set(true); // Confirmed On ended the recovery guard.
+    assert.equal(commands, 2);
+  });
+}

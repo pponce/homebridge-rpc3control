@@ -121,3 +121,73 @@ test('power-aware HomeKit switch reads real state, reboots on Off and returns to
   assert.equal(calls.added[0].getService('switch').getCharacteristic('On').value, true);
   assert.deepEqual(server.commands, []);
 });
+
+test('startup registration failure is logged, stops partial setup and preserves cached accessories', async t => {
+  const server = await fakePdu();
+  t.after(() => server.close());
+  const { api, calls } = fakeApi();
+  const messages = [];
+  const pdu = config(server.port, { outlets: [
+    { number: 1, name: 'First', mode: 'power', resetAfterMs: 3000 },
+    { number: 2, name: 'Second', mode: 'power', resetAfterMs: 3000 },
+  ] });
+  const stale = new FakeAccessory('Retained', 'stale');
+  stale.addService('switch');
+  const originalRegister = api.registerPlatformAccessories;
+  api.registerPlatformAccessories = (...args) => {
+    if (calls.added.length) throw new Error('private startup sentinel');
+    originalRegister(...args);
+  };
+  const platform = new Rpc3Platform({ ...log, error: message => messages.push(message) }, { platform: 'Rpc3Control', pdus: [pdu] }, api);
+  platform.configureAccessory(stale);
+  assert.doesNotThrow(() => api.emit('didFinishLaunching'));
+  assert.equal(calls.added.length, 1);
+  assert.deepEqual(calls.removed, []);
+  for (const accessory of [stale, ...calls.added]) {
+    const on = accessory.getService('switch').getCharacteristic('On');
+    assert.throws(() => on.get(), { hapStatus: -70402 });
+    assert.throws(() => on.set(true), { hapStatus: -70402 });
+    assert.equal(on.value.hapStatus, -70402);
+  }
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0], 'RPC PDU startup failed: Unexpected internal error');
+  api.emit('didFinishLaunching'); // Failure must not silently retry setup.
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(server.sessions, 0);
+  assert.doesNotThrow(() => api.emit('shutdown'));
+});
+
+test('one damaged cached accessory cannot prevent invalid-configuration handling for others', () => {
+  const { api } = fakeApi();
+  const messages = [];
+  const platform = new Rpc3Platform({ ...log, error: message => messages.push(message) }, { platform: 'Rpc3Control', pdus: [{}] }, api);
+  const broken = new FakeAccessory('Broken', 'broken');
+  broken.getService = () => { throw new Error('private accessory sentinel'); };
+  const healthy = new FakeAccessory('Retained', 'healthy');
+  healthy.addService('switch');
+  platform.configureAccessory(broken);
+  platform.configureAccessory(healthy);
+  assert.doesNotThrow(() => api.emit('didFinishLaunching'));
+  assert.throws(() => healthy.getService('switch').getCharacteristic('On').get(), { hapStatus: -70402 });
+  assert.ok(messages.some(message => message.includes('Could not mark an RPC outlet unavailable')));
+  assert.ok(messages.every(message => !message.includes('sentinel')));
+  api.emit('shutdown');
+});
+
+test('shutdown continues disposing other resources if one handler throws', () => {
+  const { api } = fakeApi();
+  const messages = [];
+  const platform = new Rpc3Platform({ ...log, error: message => messages.push(message) }, { platform: 'Rpc3Control' }, api);
+  let stopped = 0;
+  let disposed = 0;
+  platform.controllers.push({ stop() { throw new Error('private stop sentinel'); } }, { stop() { stopped++; } });
+  platform.handlers.push({ dispose() { throw new Error('private dispose sentinel'); } }, { dispose() { disposed++; } });
+  assert.doesNotThrow(() => api.emit('shutdown'));
+  assert.equal(stopped, 1);
+  assert.equal(disposed, 1);
+  assert.equal(messages.length, 2);
+  assert.ok(messages.every(message => !message.includes('sentinel')));
+  api.emit('shutdown');
+  assert.equal(stopped, 1);
+  assert.equal(disposed, 1);
+});

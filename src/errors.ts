@@ -13,3 +13,14 @@ export class PduError extends Error {
 export function safeError(error: unknown): string {
   return error instanceof PduError ? `${error.code}: ${error.message}` : 'Unexpected internal error';
 }
+
+export type ErrorReporter = (message: string) => void;
+
+/** Reporting an error must not become another uncaught callback failure. */
+export function reportError(report: ErrorReporter, context: string, error: unknown): void {
+  const message = `${context}: ${safeError(error)}`;
+  try { report(message); }
+  catch {
+    try { console.error(message); } catch { /* No remaining reporting destination. */ }
+  }
+}

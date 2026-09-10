@@ -34,7 +34,8 @@ export class OutletAccessory {
     if (outlet.mode === 'reboot') {
       this.reboot = new PowerAwareReboot(
         controller, outlet.number, outlet.resetAfterMs,
-        () => this.service.updateCharacteristic(Characteristic.On, this.communicationError()),
+        () => { this.service.updateCharacteristic(Characteristic.On, this.communicationError()); },
+        message => this.log.error(`[${controller.config.name}] Outlet ${outlet.number}: ${message}`),
       );
     }
     this.service.updateCharacteristic(Characteristic.On, this.communicationError());
@@ -76,4 +77,3 @@ export class OutletAccessory {
 
   dispose(): void { this.unsubscribe?.(); this.reboot?.stop(); }
 }
-

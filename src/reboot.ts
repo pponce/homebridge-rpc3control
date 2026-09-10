@@ -1,4 +1,5 @@
-import { PduError } from './errors.js';
+import { PduError, reportError } from './errors.js';
+import type { ErrorReporter } from './errors.js';
 import type { Action, StatusMap } from './protocol.js';
 
 interface Controller {
@@ -20,7 +21,8 @@ export class PowerAwareReboot {
     private controller: Controller,
     private outlet: number,
     private checkDelayMs: number,
-    private unavailable: () => void,
+    private unavailable: () => void | Promise<void>,
+    private report: ErrorReporter = console.error,
   ) {}
 
   async set(on: boolean): Promise<void> {
@@ -58,7 +60,12 @@ export class PowerAwareReboot {
 
   private schedule(delay: number): void {
     if (this.stopped || !this.recovering) return;
-    this.timer = setTimeout(() => void this.verify(), delay);
+    this.timer = setTimeout(() => {
+      void this.verify().catch(error => {
+        reportError(this.report, 'Outlet recovery stopped after an internal failure', error);
+        this.finish();
+      });
+    }, delay);
     this.timer.unref();
   }
 
@@ -68,8 +75,8 @@ export class PowerAwareReboot {
     try {
       const state = (await this.controller.getStatus(true)).get(this.outlet);
       if (state) this.observe(state.on);
-      else this.unavailable();
-    } catch { if (!this.stopped) this.unavailable(); }
+      else this.markUnavailable();
+    } catch { if (!this.stopped) this.markUnavailable(); }
     if (this.stopped || !this.recovering) return;
     if (Date.now() >= this.recoverUntil) {
       // No endless background traffic. Later reads/actions still require real status.
@@ -78,6 +85,14 @@ export class PowerAwareReboot {
     }
     const interval = Math.min(60000, 5000 * 2 ** Math.min(this.attempts++, 4));
     this.schedule(Math.min(interval, this.recoverUntil - Date.now()));
+  }
+
+  private markUnavailable(): void {
+    try {
+      void Promise.resolve(this.unavailable()).catch(error => {
+        reportError(this.report, 'Outlet recovery callback failed', error);
+      });
+    } catch (error) { reportError(this.report, 'Outlet recovery callback failed', error); }
   }
 
   private finish(): void {
