@@ -1,8 +1,18 @@
 # homebridge-rpc3control
 
+![BayTech RPC power distribution unit](https://raw.githubusercontent.com/pponce/homebridge-rpc3control/main/assets/BayTech-PDU-Shot.jpg)
+
 A Homebridge platform plugin for one or more BayTech RPC PDUs using direct Telnet from TypeScript. Each configured outlet appears as a stateful power switch or a momentary native reboot switch.
 
 **0.1.0-beta.1 development preview. Not published to npm.** Automated tests use simulated PDUs. Validation on the developer's physical eight-outlet RPC unit is pending. Other models are assumed to share the RPC menu and four-session limit but are not hardware-verified.
+
+## Old hardware, new tricks
+
+Your BayTech RPC may come from the era of terminal windows and blinking rack lights, but it still has plenty of switches left to flip. Retirement? Let's give it a HomeKit invitation instead.
+
+This plugin brings that old workhorse into the Home app: tap to control an outlet, ask Siri to switch it on, or give a stubborn device a native power-cycle reboot. The PDU keeps speaking Telnet; Homebridge handles the introductions. No new smart power strip or PDU cloud account required.
+
+Same sturdy metal box. Same satisfying relay clicks. A few decidedly modern party tricks.
 
 ## Features
 
