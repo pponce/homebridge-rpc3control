@@ -5,7 +5,7 @@ import type { Transport } from './telnet.js';
 
 export interface OutletState { number: number; name: string; on: boolean; }
 export type StatusMap = Map<number, OutletState>;
-export type Action = 'on' | 'off' | 'reboot';
+export type Action = 'on' | 'off' | 'reboot' | 'ensure-on' | 'reboot-if-on';
 export type TransportFactory = (signal: AbortSignal) => Transport;
 
 const LOGIN = [/Enter username\s*>/i, /Enter password\s*>/i, /Enter Selection\s*>/i];
@@ -43,7 +43,7 @@ export class RpcProtocol {
     if (action && (outlet === undefined || !Number.isInteger(outlet) || outlet < 1 || outlet > this.config.outletCount)) {
       throw new PduError('CONFIG', 'Outlet number is outside the configured PDU range');
     }
-    if (action && !['on', 'off', 'reboot'].includes(action)) throw new PduError('CONFIG', 'Unsupported outlet action');
+    if (action && !['on', 'off', 'reboot', 'ensure-on', 'reboot-if-on'].includes(action)) throw new PduError('CONFIG', 'Unsupported outlet action');
     const transport = this.factory(signal);
     let atRpcPrompt = false;
     let sent = false;
@@ -57,10 +57,19 @@ export class RpcProtocol {
       atRpcPrompt = true;
       if (!action) return parseStatus(initial.before, this.config.outletCount);
 
+      let command = action;
+      if (action === 'ensure-on' || action === 'reboot-if-on') {
+        // Decide from fresh status in this same queued session, never the UI cache.
+        const statuses = parseStatus(initial.before, this.config.outletCount);
+        const state = statuses.get(outlet!);
+        if (!state) throw new PduError('PROTOCOL', 'Outlet state is unknown; no power command was sent');
+        if ((action === 'ensure-on' && state.on) || (action === 'reboot-if-on' && !state.on)) return statuses;
+        command = action === 'ensure-on' ? 'on' : 'reboot';
+      }
       atRpcPrompt = false;
       // Once transmission is attempted, an absent reply is uncertain. Never replay it.
       sent = true;
-      transport.send(`${action} ${outlet}\r`);
+      transport.send(`${command} ${outlet}\r`);
       const response = await transport.expect([RPC_PROMPT], this.config.operationTimeoutMs);
       atRpcPrompt = true;
       if (REJECTION.test(response.before)) {

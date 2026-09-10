@@ -2,7 +2,7 @@ import type { API, CharacteristicValue, Logging, PlatformAccessory, Service } fr
 import type { OutletConfig } from './config.js';
 import { PduController } from './controller.js';
 import { safeError } from './errors.js';
-import { RebootSwitch } from './reboot.js';
+import { PowerAwareReboot } from './reboot.js';
 import { VERSION } from './settings.js';
 
 export class OutletAccessory {
@@ -11,7 +11,7 @@ export class OutletAccessory {
   private log: Logging;
   private controller: PduController;
   private outlet: OutletConfig;
-  private reboot?: RebootSwitch;
+  private reboot?: PowerAwareReboot;
   private unsubscribe?: () => void;
 
   constructor(api: API, log: Logging, accessory: PlatformAccessory, controller: PduController, outlet: OutletConfig) {
@@ -32,20 +32,19 @@ export class OutletAccessory {
     const on = this.service.getCharacteristic(Characteristic.On);
     on.onGet(() => this.getOn()).onSet(value => this.setOn(value));
     if (outlet.mode === 'reboot') {
-      this.reboot = new RebootSwitch(
-        () => controller.command(outlet.number, 'reboot'),
-        value => this.service.updateCharacteristic(Characteristic.On, value),
-        outlet.resetAfterMs,
+      this.reboot = new PowerAwareReboot(
+        controller, outlet.number, outlet.resetAfterMs,
+        () => this.service.updateCharacteristic(Characteristic.On, this.communicationError()),
       );
-      this.service.updateCharacteristic(Characteristic.On, false);
-    } else {
-      this.service.updateCharacteristic(Characteristic.On, this.communicationError());
-      this.unsubscribe = controller.subscribe(status => {
-        const entry = status?.get(outlet.number);
-        if (entry) this.service.updateCharacteristic(Characteristic.On, entry.on);
-        else this.service.updateCharacteristic(Characteristic.On, this.communicationError());
-      });
     }
+    this.service.updateCharacteristic(Characteristic.On, this.communicationError());
+    this.unsubscribe = controller.subscribe(status => {
+      const entry = status?.get(outlet.number);
+      if (entry) {
+        this.reboot?.observe(entry.on);
+        this.service.updateCharacteristic(Characteristic.On, entry.on);
+      } else this.service.updateCharacteristic(Characteristic.On, this.communicationError());
+    });
   }
 
   private communicationError(): Error {
@@ -55,7 +54,9 @@ export class OutletAccessory {
 
   async getOn(): Promise<boolean> {
     try {
-      return this.reboot ? this.reboot.on : await this.controller.getOutlet(this.outlet.number);
+      const on = await this.controller.getOutlet(this.outlet.number);
+      this.reboot?.observe(on);
+      return on;
     } catch { throw this.communicationError(); }
   }
 
@@ -75,3 +76,4 @@ export class OutletAccessory {
 
   dispose(): void { this.unsubscribe?.(); this.reboot?.stop(); }
 }
+

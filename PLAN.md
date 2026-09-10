@@ -12,7 +12,7 @@ Date: 2026-09-10. Status: initial implementation prepared; physical hardware val
 - Settings experience: implemented custom PDU cards, collapsed credentials/advanced options, conditional reboot delay, seconds-based controls backed by existing millisecond JSON, generated stable IDs, and non-destructive missing-outlet generation.
 - Read-only connection preview: explicit user action, status snapshot including Unknown rows, one active test per UI server, five-second cooldown, ten-second deadline. It can add one session alongside the platform worker. Uses the official Homebridge UI helper; the Telnet controller itself remains dependency-free.
 - UI verification: model/preview regressions, real UI helper IPC tests, and a Chromium harness for validation/save behavior, metadata preservation, conditional fields, responsive layout, and text-safe status rendering. Live Homebridge and physical PDU validation remain pending.
-- Initial configuration limits: 1-256 outlets; one mode per configured outlet; reboot reset default 3000 ms. No physical reboot-duration setting.
+- Initial configuration limits: 1-256 outlets; one mode per configured outlet; recovery check delay default 3000 ms. No physical reboot-duration setting.
 
 ## Goal and locations
 
@@ -31,7 +31,7 @@ Read the local Python reference before porting. Preserve any existing model-spec
 ## Configuration and accessories
 
 PDU settings: stable ID, name, host, port (default 23), optional username/password, outletCount, polling interval, cache TTL, connection timeout, and operation timeout.
-Outlet settings: physical number, name, and mode (power or reboot). Omitted outlets are not exposed. Reboot mode adds positive resetAfterMs, proposed default 3000 ms.
+Outlet settings: physical number, name, and mode (power or reboot). Omitted outlets are not exposed. Reboot mode retains the legacy resetAfterMs JSON key for a positive recovery check delay, default 3000 ms.
 Reject duplicate PDU IDs, duplicate endpoint entries where identifiable, and duplicate outlet numbers within a PDU. Derive accessory identity from PDU ID, outlet number, and control role rather than name or list order.
 
 ## Stateful power switches
@@ -39,14 +39,14 @@ Reject duplicate PDU IDs, duplicate endpoint entries where identifiable, and dup
 Use writable HomeKit Switch services. On sends native on N; Off sends native off N. Read actual outlet state from the PDU.
 After a write, invalidate the shared PDU cache and schedule one verification read. Keep requested and confirmed states distinct. Missing or failed reads mean unknown/unreachable, never Off.
 
-## Momentary reboot switches
+## Power-aware reboot switches (replaces momentary behavior in beta.2)
 
-Use a writable HomeKit Switch, not StatelessProgrammableSwitch. Turning it On queues exactly one native reboot N command, which the existing controller supports.
-The PDU performs the off/on cycle. Never implement reboot as separate off and on commands with a plugin timer.
-Show On while pending. After command acceptance, reset the displayed switch to Off after resetAfterMs. This delay controls only the switch display, not the physical power-off duration.
-Internal reset and user Off writes must not send hardware commands. User Off does not cancel an accepted reboot or clear duplicate suppression.
-Suppress duplicate On requests while pending or awaiting reset. On failure, clear the display and report the error. After a timeout or disconnect following transmission, treat the outcome as uncertain and never automatically replay reboot.
-Acceptance does not prove that attached equipment has finished booting. Initialize reboot switches Off after restart; never replay old requests. Clear timers at shutdown.
+Keep two modes: normal power and power-aware reboot. Both display confirmed physical outlet state. Keep the stored reboot mode and accessory identity; document the changed semantics prominently.
+In one queued Telnet session, read fresh status and then decide: Off + On request sends native on N; On + Off request sends native reboot N; matching requests do nothing. Missing status fails without a power command.
+The PDU itself restores power after native reboot even if it loses its Ethernet path, the router is offline, or the Homebridge host is the rebooted device. Never use separate off/on commands or timers to restore power.
+On the HomeKit switch returns only after a fresh read confirms power. Unreachable is unknown/error, never invented On. Accepted or uncertain actions start read-only recovery after resetAfterMs, then back off 5/10/20/40/60 seconds for up to ten minutes. Preserve the per-PDU queue, shared cache, failure backoff, and shutdown cleanup. No endless idle recovery traffic.
+Reject duplicate/opposite writes while pending or recovering. A timeout/disconnect after transmission is uncertain; do not automatically resend the command. After recovery expires, allow later explicit user actions based on fresh state. Restart discovers status without replaying prior actions.
+Clarify in UI and README that Siri/scenes requesting Off cause reboot, this mode cannot leave an On outlet powered off, and confirmed outlet power does not imply equipment has finished booting.
 
 ## Telnet protocol
 
@@ -69,7 +69,7 @@ Use in-memory coordination rather than the legacy shared cache file. Isolate fai
 3. Build a simulated Telnet PDU and sanitized protocol fixtures. Implement transport, parsing, per-PDU queues, cache, and cleanup.
 4. Add validated configuration, stable accessories, stateful power control, and reboot timers.
 5. Test optional login, split prompts, malformed/missing status, multiple simulated PDUs, configurable counts, session limits, cache coalescing, timeouts, and failure isolation.
-6. Test reboot exactly once, reset timing, duplicate suppression, Off/reset sending no command, uncertain outcomes without replay, accessory identity, mode changes, and shutdown.
+6. Test fresh-state action selection, no-op requests, native reboot exactly once on Off, read-only recovery after network loss, On restoration without another hardware command, bounded retries, duplicate/opposite suppression, accessory identity, and shutdown.
 7. Validate actual status, power control, and native reboot on the owned eight-outlet unit with a selected noncritical load. Coordinate actions affecting the SSH host or network. Other-model hardware testing waits for users.
 8. Document setup, compatibility assumptions, troubleshooting, and feedback. Test a packed npm artifact in clean Homebridge without Python or Telnet installed. Include compiled JavaScript. npm publication is a separate release step.
 

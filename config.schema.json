@@ -2,7 +2,7 @@
   "pluginAlias": "Rpc3Control",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "Control BayTech RPC power outlets over your local network. Reboot uses the PDU native power-cycle command. Other RPC models are assumed compatible but have not been hardware-verified.",
+  "headerDisplay": "Control BayTech RPC outlets over your local network. Power-aware reboot: On powers up an Off outlet; Off reboots an On outlet using the PDU native command. The PDU restores power even if the network drops; the switch returns to On after status is confirmed. Other RPC models are not hardware-verified.",
   "schema": {
     "type": "object",
     "properties": {
@@ -98,15 +98,15 @@
                       "reboot"
                     ],
                     "default": "power",
-                    "description": "power: actual On/Off state. reboot: turn On to power-cycle once, then reset the switch display."
+                    "description": "power: normal On/Off. reboot: shows real power state; request On when Off to power up, or Off when On for a native PDU reboot. Siri/scenes that turn it Off will reboot it. On returns only after confirmation; no delayed On command is sent."
                   },
                   "resetAfterMs": {
-                    "title": "Switch reset delay (milliseconds)",
+                    "title": "Recovery check delay (milliseconds)",
                     "type": "integer",
                     "minimum": 100,
                     "maximum": 3600000,
                     "default": 3000,
-                    "description": "Reboot mode only. Controls when the switch display returns to Off after acceptance; does not change the physical reboot duration."
+                    "description": "Power-aware reboot only. Delay before checking actual state after an action, then bounded read-only recovery. Does not control physical reboot duration or force the displayed state. Legacy JSON key retained for compatibility."
                   }
                 }
               }

@@ -142,13 +142,17 @@ function renderOutlets(pdu, container) {
     let reset;
     field(grid, outlet, 'mode', 'Behavior', {
       required: true,
-      choices: [['power', 'Power (On / Off)'], ['reboot', 'Reboot (momentary)']],
+      choices: [['power', 'Power (On / Off)'], ['reboot', 'Power-aware reboot']],
       onEdit: () => { reset.wrapper.hidden = outlet.mode !== 'reboot'; reset.input.disabled = outlet.mode !== 'reboot'; },
     });
+    const behaviorHelp = element('p', 'rpc-reboot-help', 'Shows actual power state. When Off, request On to power up. When On, request Off to send the PDU native reboot command. The PDU restores power itself even if the network path drops. The switch returns to On after confirmation; it may show No Response while unreachable. Siri and scenes that turn this switch Off will reboot it.');
+    behaviorHelp.hidden = outlet.mode !== 'reboot';
+    grid.querySelector('select').addEventListener('change', () => { behaviorHelp.hidden = outlet.mode !== 'reboot'; });
+    row.append(behaviorHelp);
     const actions = element('div', 'rpc-outlet-actions');
-    reset = field(actions, outlet, 'resetAfterMs', 'Switch reset delay (seconds)', {
+    reset = field(actions, outlet, 'resetAfterMs', 'Recovery check delay (seconds)', {
       type: 'number', seconds: true, fallback: 3000, min: 0.1, max: 3600, required: true,
-      help: 'Resets the HomeKit switch after the PDU accepts reboot. The PDU controls the actual power-cycle duration.',
+      help: 'Seconds before checking power after an action. This never schedules an On command or forces the switch display. The PDU controls its native reboot cycle.',
     });
     reset.wrapper.hidden = outlet.mode !== 'reboot';
     reset.input.disabled = outlet.mode !== 'reboot';
@@ -251,7 +255,7 @@ function renderPdus() {
     }
     advanced.append(advancedFields);
     card.append(element('h4', 'mt-3', 'Outlet switches'));
-    card.append(element('p', '', 'Power switches show actual On / Off state. Reboot switches trigger one PDU power cycle. Changing behavior recreates that HomeKit accessory.'));
+    card.append(element('p', '', 'Both behaviors show actual power state. Power switches turn outlets On or Off. Power-aware reboot switches turn an Off outlet On, or reboot an On outlet when you request Off. Changing behavior recreates that HomeKit accessory.'));
     const outletActions = element('div', 'rpc-actions');
     const outlets = element('div', 'rpc-outlets');
     outletActions.append(button('Add missing outlets', () => {

@@ -74,16 +74,17 @@ export class PduController {
     return status.on;
   }
 
-  async command(outlet: number, action: Action): Promise<void> {
-    if (!Number.isInteger(outlet) || outlet < 1 || outlet > this.config.outletCount || !['on', 'off', 'reboot'].includes(action)) {
+  async command(outlet: number, action: Action): Promise<boolean> {
+    if (!Number.isInteger(outlet) || outlet < 1 || outlet > this.config.outletCount || !['on', 'off', 'reboot', 'ensure-on', 'reboot-if-on'].includes(action)) {
       throw new PduError('CONFIG', 'Invalid outlet action');
     }
     this.invalidate();
     try {
-      await this.enqueue(action, outlet, this.generation);
+      const result = await this.enqueue(action, outlet, this.generation);
+      return result === undefined; // Status map means a confirmed no-op.
     } finally {
       // One deferred refresh, shared by all waiting HomeKit reads; never retry the write.
-      if (!this.stopped) void this.getStatus(true).catch(() => {});
+      if (!this.stopped && action !== 'ensure-on' && action !== 'reboot-if-on') void this.getStatus(true).catch(() => {});
     }
   }
 
@@ -127,8 +128,8 @@ export class PduController {
           if (this.stopped) throw new PduError('STOPPED', 'PDU controller stopped during operation');
           this.failureCount = 0;
           this.retryAt = 0;
-          if (job.action) this.invalidate();
-          if (!job.action && result && job.generation === this.generation) {
+          if (job.action && !result) this.invalidate();
+          if (result && job.generation === this.generation) {
             this.cache = result;
             this.cachedAt = Date.now();
             this.notify(result);
@@ -149,7 +150,7 @@ export class PduController {
   }
 
   startPolling(offsetMs = 0): void {
-    if (this.stopped || this.pollTimer || !this.config.outlets.some(o => o.mode === 'power')) return;
+    if (this.stopped || this.pollTimer || !this.config.outlets.length) return;
     const poll = async () => {
       try { await this.getStatus(true); } catch { /* Failure is reported through subscriptions. */ }
       if (!this.stopped && this.config.pollingIntervalMs > 0) {

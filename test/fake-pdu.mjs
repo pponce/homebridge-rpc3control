@@ -7,6 +7,7 @@ export async function fakePdu(options = {}) {
   const states = new Map(Array.from({ length: count }, (_, n) => [n + 1, true]));
   const commands = [];
   const sockets = new Set();
+  const rebootTimers = new Set();
   let sessions = 0;
   let maxActive = 0;
   const rows = () => options.rows ?? [...states].map(([n, on]) => `${n} Outlet-${n} ${n} ${on ? 'On' : 'Off'}`).join('\r\n');
@@ -66,6 +67,13 @@ export async function fakePdu(options = {}) {
         } else if (stage === 'rpc') {
           commands.push(command);
           const [action, number] = command.split(' ');
+          if (action === 'reboot' && options.rebootMs !== undefined) {
+            states.set(Number(number), false);
+            // Simulate the PDU firmware restoring power with no client connection.
+            const timer = setTimeout(() => { states.set(Number(number), true); rebootTimers.delete(timer); }, options.rebootMs);
+            rebootTimers.add(timer);
+            if (options.disconnectOnReboot) { socket.destroy(); continue; }
+          }
           if (options.disconnectOnCommand) { socket.destroy(); continue; }
           if (options.rejectCommand) { send('Invalid command\r\nRPC-3>'); continue; }
           if (action === 'on' || action === 'off') states.set(Number(number), action === 'on');
@@ -83,6 +91,7 @@ export async function fakePdu(options = {}) {
     get active() { return sockets.size; },
     get maxActive() { return maxActive; },
     async close() {
+      for (const timer of rebootTimers) clearTimeout(timer);
       for (const socket of sockets) socket.destroy();
       await new Promise(resolve => server.close(resolve));
     },

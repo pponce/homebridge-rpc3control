@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { PduController } from '../dist/controller.js';
-import { RebootSwitch } from '../dist/reboot.js';
 import { fakePdu, config } from './fake-pdu.mjs';
 
 test('simultaneous reads share one full-PDU cache refresh', async t => {
@@ -85,45 +84,3 @@ test('queued commands expire before transmission', async t => {
   assert.deepEqual(server.commands, []);
 });
 
-test('reboot duplicates, Off writes, and timer reset never send additional commands', async () => {
-  let count = 0;
-  const updates = [];
-  const reboot = new RebootSwitch(async () => { count++; await delay(20); }, on => updates.push(on), 40);
-  const first = reboot.set(true);
-  await reboot.set(false);
-  await Promise.all([first, reboot.set(true)]);
-  await reboot.set(true);
-  assert.equal(count, 1);
-  assert.equal(reboot.on, true);
-  await delay(60);
-  assert.equal(reboot.on, false);
-  assert.deepEqual(updates, [true, false]);
-  assert.equal(count, 1);
-  reboot.stop();
-});
-
-test('reboot failure resets display; shutdown suppresses delayed timers and replay', async () => {
-  const updates = [];
-  const failed = new RebootSwitch(async () => { throw new Error('uncertain'); }, on => updates.push(on), 20);
-  await assert.rejects(failed.set(true));
-  assert.equal(failed.on, false);
-  assert.deepEqual(updates, [true, false]);
-  failed.stop();
-  const stopped = new RebootSwitch(async () => { await delay(10); }, on => updates.push(on), 20);
-  const request = stopped.set(true);
-  await delay(1);
-  stopped.stop();
-  await request;
-  await delay(40);
-  assert.deepEqual(updates, [true, false, true]);
-  await assert.rejects(stopped.set(true), { code: 'STOPPED' });
-});
-
-test('stopping before the reboot microtask prevents transmission', async () => {
-  let sent = 0;
-  const reboot = new RebootSwitch(async () => { sent++; }, () => {}, 20);
-  const request = reboot.set(true);
-  reboot.stop();
-  await assert.rejects(request, { code: 'STOPPED' });
-  assert.equal(sent, 0);
-});

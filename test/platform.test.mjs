@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { test } from 'node:test';
-import { setTimeout as delay } from 'node:timers/promises';
 import register from '../dist/index.js';
 import { Rpc3Platform } from '../dist/platform.js';
 import { OutletAccessory } from '../dist/accessory.js';
+import { PduController } from '../dist/controller.js';
 import { accessoryKey } from '../dist/config.js';
 import { config, fakePdu } from './fake-pdu.mjs';
 
@@ -88,29 +88,36 @@ test('invalid configuration preserves cached accessories but makes their handler
   api.emit('shutdown');
 });
 
-test('HomeKit adapter maps errors and reboot UI updates cannot reenter command handlers', async () => {
+test('power-aware HomeKit switch reads real state, reboots on Off and returns to On', async t => {
+  const server = await fakePdu({ rebootMs: 40 });
+  const controller = new PduController(config(server.port));
   const { api } = fakeApi();
-  const commands = [];
-  const controller = {
-    config: config(23),
-    async command(number, action) { commands.push([number, action]); },
-    async getOutlet() { throw new Error('offline'); },
-    subscribe() { return () => {}; },
-  };
-  const accessory = new FakeAccessory('Reboot', 'reboot');
-  const outlet = { number: 1, name: 'Reboot', mode: 'reboot', resetAfterMs: 20 };
+  const accessory = new FakeAccessory('Router', 'router');
+  const outlet = { number: 1, name: 'Router', mode: 'reboot', resetAfterMs: 100 };
   const handler = new OutletAccessory(api, log, accessory, controller, outlet);
+  t.after(() => { handler.dispose(); controller.stop(); });
+  t.after(() => server.close());
   const on = accessory.getService('switch').getCharacteristic('On');
-  assert.equal(await on.get(), false);
-  await on.set(true);
+  assert.equal(await on.get(), true);
   await on.set(false);
-  await on.set(true);
-  await delay(40);
-  assert.deepEqual(commands, [[1, 'reboot']]);
-  assert.equal(on.value, false);
-  handler.dispose();
-  const power = new OutletAccessory(api, log, new FakeAccessory('Power', 'power'), controller, { ...outlet, mode: 'power' });
-  await assert.rejects(power.getOn(), { hapStatus: -70402 });
-  await assert.rejects(power.setOn('invalid'), { hapStatus: -70410 });
-  power.dispose();
+  await assert.rejects(on.set(false), { hapStatus: -70402 });
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.deepEqual(server.commands, ['reboot 1']);
+  assert.equal(on.value, true);
+  assert.equal(await on.get(), true);
+  await assert.rejects(handler.setOn('invalid'), { hapStatus: -70410 });
+});
+
+ test('reboot-only platforms perform startup status discovery', async t => {
+  const server = await fakePdu();
+  const { api, calls } = fakeApi();
+  t.after(() => api.emit('shutdown'));
+  t.after(() => server.close());
+  const pdu = config(server.port);
+  pdu.outlets[0].mode = 'reboot';
+  new Rpc3Platform(log, { platform: 'Rpc3Control', pdus: [pdu] }, api);
+  api.emit('didFinishLaunching');
+  await new Promise(resolve => setTimeout(resolve, 150));
+  assert.equal(calls.added[0].getService('switch').getCharacteristic('On').value, true);
+  assert.deepEqual(server.commands, []);
 });

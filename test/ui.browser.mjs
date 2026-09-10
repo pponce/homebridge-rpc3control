@@ -62,10 +62,12 @@ test('settings UI preserves config, controls visibility, previews safely and fit
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.waitForFunction(() => window.__enabled);
   const first = page.getByRole('region', { name: 'PDU 1 settings' });
-  assert.equal(await first.getByLabel('Switch reset delay (seconds)').isVisible(), false);
+  assert.equal(await first.getByLabel('Recovery check delay (seconds)').isVisible(), false);
   assert.equal(await first.getByLabel('Status cache (seconds)').isVisible(), false);
-  await first.getByLabel('Behavior').selectOption('reboot');
-  await first.getByLabel('Switch reset delay (seconds)').fill('2.75');
+  await first.getByLabel('Behavior').selectOption({ label: 'Power-aware reboot' });
+  assert.ok((await first.locator('.rpc-reboot-help').textContent()).includes('PDU restores power itself'));
+  assert.equal(await first.locator('.rpc-reboot-help').isVisible(), true);
+  await first.getByLabel('Recovery check delay (seconds)').fill('2.75');
   await page.waitForFunction(() => window.__enabled && window.__blocks[0].pdus[0].outlets[0].resetAfterMs === 2750);
   await first.getByText('Advanced connection and timing settings', { exact: true }).click();
   await first.getByLabel('Status cache (seconds)').fill('15.001');

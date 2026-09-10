@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-beta.2
+
+- **Behavior change:** `reboot` is now Power-aware reboot. It displays actual power state; On powers up an Off outlet, and Off reboots an On outlet. Matching requests are no-ops. Update beta.1 Siri/scenes that previously requested On to reboot.
+- Fresh-state decision and native command share one queued Telnet session. Missing status prevents action.
+- Reboot always uses native `reboot N`: the PDU restores power autonomously through network loss. No timer sends an On command and uncertain writes are never automatically replayed.
+- Delayed, bounded, read-only recovery restores the displayed On state after confirmation, including with polling disabled. Duplicate/opposite writes are rejected during recovery.
+- `resetAfterMs` is retained as the recovery check delay. Both modes now perform startup discovery and honor normal status polling.
+- Added protocol, HomeKit, network-loss, backoff, shutdown, and UI regression checks.
+
 ## 0.1.0-beta.1
 
 - Initial TypeScript platform plugin and Homebridge UI configuration schema.

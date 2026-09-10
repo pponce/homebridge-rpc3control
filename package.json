@@ -1,9 +1,9 @@
 {
   "name": "homebridge-rpc3control",
   "displayName": "RPC PDU Control",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "private": true,
-  "description": "Direct Telnet control of BayTech RPC PDUs with power and momentary reboot switches",
+  "description": "Direct Telnet control of BayTech RPC PDUs with power and power-aware native reboot switches",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

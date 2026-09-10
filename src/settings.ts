@@ -1,3 +1,3 @@
 export const PLUGIN_NAME = 'homebridge-rpc3control';
 export const PLATFORM_NAME = 'Rpc3Control';
-export const VERSION = '0.1.0-beta.1';
+export const VERSION = '0.1.0-beta.2';
