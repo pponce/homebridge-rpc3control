@@ -1,4 +1,4 @@
-<p align="center">
+<p align="Left">
   <img src="https://raw.githubusercontent.com/pponce/homebridge-rpc3control/main/assets/homebridge-rpc3control-icon-512.png" alt="RPC PDU Control icon" width="128" height="128">
 </p>
 
