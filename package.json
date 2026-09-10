@@ -1,0 +1,27 @@
+{
+  "name": "homebridge-rpc3control",
+  "displayName": "RPC PDU Control",
+  "version": "0.1.0-beta.1",
+  "private": true,
+  "description": "Direct Telnet control of BayTech RPC PDUs with power and momentary reboot switches",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "config.schema.json", "README.md", "CHANGELOG.md", "LICENSE"],
+  "keywords": ["homebridge-plugin", "supports-hap", "baytech", "rpc3", "pdu"],
+  "author": "Pedro Ponce de Leon",
+  "license": "MIT",
+  "repository": {"type": "git", "url": "git+https://github.com/pponce/homebridge-rpc3control.git"},
+  "homepage": "https://github.com/pponce/homebridge-rpc3control#readme",
+  "bugs": {"url": "https://github.com/pponce/homebridge-rpc3control/issues"},
+  "engines": {"node": "^22.13.0 || ^24.0.0", "homebridge": "^1.8.0 || ^2.0.0"},
+  "scripts": {
+    "build": "node scripts/clean.mjs && tsc",
+    "lint": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run lint && npm test"
+  },
+  "devDependencies": {"@types/node": "^24.0.0", "homebridge": "^2.4.0", "typescript": "^6.0.3"}
+}

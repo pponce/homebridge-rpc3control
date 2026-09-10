@@ -1,6 +1,15 @@
 # homebridge-rpc3control: implementation plan
 
-Date: 2026-09-10. Status: agreed architecture; implementation pending.
+Date: 2026-09-10. Status: initial implementation prepared; physical hardware validation and npm publication pending.
+
+## Implementation status
+
+- Implemented: TypeScript platform, UI schema, direct Telnet transport, optional login, configurable counts, stateful power, native reboot controls, queues, cache, backoff, shutdown, and stable accessory identities.
+- Automated verification: synthetic TCP PDUs, simulated Homebridge API lifecycle, and isolated npm archive loading. CI runs compiler checks and tests on Node 22 and 24.
+- Transport decision: evaluated telnet-client source and selected an incremental parser over Node net to handle split/embedded negotiation and prompts without runtime dependencies.
+- Pending: physical eight-outlet validation, live Homebridge/Home app validation, other-model feedback, and npm publication. Package remains private to prevent accidental publication.
+- Only the GitHub Python reference was accessible. Any unpushed differences in the developer-local folder still need comparison before hardware testing.
+- Initial configuration limits: 1-256 outlets; one mode per configured outlet; reboot reset default 3000 ms. No physical reboot-duration setting.
 
 ## Goal and locations
 
