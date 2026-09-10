@@ -135,3 +135,32 @@ test('a throwing error logger cannot break status delivery', { timeout: 1500 }, 
   assert.equal(fallback.mock.callCount(), 1);
   assert.equal(fallback.mock.calls[0].arguments[0], 'PDU status callback failed: Unexpected internal error');
 });
+
+test('shared refresh and periodic polling emit debug diagnostics without additional PDU sessions', async t => {
+  const debug = [];
+  let reads = 0;
+  const states = new Map([[1, { number: 1, name: 'Ignored raw device name', on: true }]]);
+  let release;
+  const firstRead = new Promise(resolve => { release = resolve; });
+  const controller = new PduController(config(23, { pollingIntervalMs: 5000 }), {
+    async execute() { if (++reads === 1) await firstRead; return states; },
+  }, () => {}, message => debug.push(message));
+  t.after(() => controller.stop());
+  const a = controller.getStatus(false, 'HomeKit');
+  const b = controller.getStatus(false, 'HomeKit');
+  release();
+  await Promise.all([a, b]);
+  assert.equal(reads, 1);
+  assert.ok(debug.some(message => message.includes('joining pending refresh')));
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'] });
+  const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+  controller.startPolling();
+  t.mock.timers.tick(1);
+  await flush();
+  t.mock.timers.tick(5000);
+  await flush();
+  assert.equal(reads, 3);
+  assert.ok(debug.includes('Startup status check succeeded.'));
+  assert.ok(debug.includes('Polling status check succeeded.'));
+  assert.ok(debug.every(message => !message.includes('Ignored raw device name')));
+});

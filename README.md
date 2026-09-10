@@ -175,6 +175,29 @@ After an accepted or uncertain action, the plugin waits for the configured **Rec
 
 The legacy JSON key `resetAfterMs` is retained, but now means **delay before checking recovery**, not a forced display reset. Its UI label is “Recovery check delay.” After restart, both modes discover real state; no saved reboot request is replayed.
 
+## Logging
+
+Normal Homebridge logs show accepted On/Off/native Reboot commands, power-aware requests that need no change, and a single confirmation when power is observed On after a power-aware action. Messages identify the configured PDU, outlet number, and outlet name. HomeKit requests include taps, Siri, scenes, and automations; the plugin does not identify which person or Home app initiated them.
+
+Examples:
+
+```text
+[Main rack] Outlet 2 (Desk): HomeKit Off request: Off command accepted by PDU.
+[Main rack] Outlet 3 (Router): HomeKit Off request: native Reboot command accepted by PDU; PDU controls the off/on cycle.
+[Main rack] Outlet 3 (Router): Reboot request recovery: outlet power confirmed On.
+```
+
+**Command acceptance and confirmed power are separate events.** An uncertain command produces a warning, not an acceptance message. Recovery confirmation only establishes that the outlet is powered On; it does not prove that the attached device has finished booting or that an uncertain reboot definitely occurred. If recovery expires without confirming On, one warning is logged. No command is automatically retried.
+
+Successful periodic polling, startup status discovery, ordinary state updates, and Apple Home state reads stay out of normal logs. Enable Homebridge debug logging for the instance or child bridge running this plugin, and restart it, to see:
+
+- HomeKit read requests and returned On/Off values.
+- Cache hits, shared pending refreshes, and fresh PDU status requests.
+- Startup and periodic polling checks and successful refresh counts.
+- Read failures and recovery reads, labelled by their source.
+
+Debug messages do not include credentials, raw Telnet conversations, or PDU-provided outlet names. Logging does not add network requests or change cache/polling intervals. Existing warnings and errors remain visible without debug mode.
+
 ## Troubleshooting and compatibility
 
 - **No Response or Unknown:** check the PDU address, port, credentials, and local network path. Failed reads are not treated as proof that an outlet is Off. After connection failures, retries slow down to avoid repeatedly hitting the device.

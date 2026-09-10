@@ -65,11 +65,13 @@ test('recovery timer never invents On, backs off and stops after ten minutes', a
   let reads = 0;
   let actions = 0;
   let unknown = 0;
+  const messages = [];
   const controller = {
     async command() { actions++; throw new PduError('UNCERTAIN', 'reply lost'); },
     async getStatus() { reads++; throw new PduError('UNREACHABLE', 'offline'); },
   };
-  const reboot = new PowerAwareReboot(controller, 1, 3000, () => unknown++);
+  const reboot = new PowerAwareReboot(controller, 1, 3000, () => unknown++, undefined,
+    (level, message) => messages.push({ level, message }));
   t.after(() => reboot.stop());
   await assert.rejects(reboot.set(false));
   for (let i = 0; i < 15; i++) {
@@ -83,6 +85,9 @@ test('recovery timer never invents On, backs off and stops after ten minutes', a
   t.mock.timers.tick(600000);
   await Promise.resolve();
   assert.equal(reads, finishedReads);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].level, 'warn');
+  assert.match(messages[0].message, /recovery ended without confirming On/);
 });
 
 test('duplicate and opposite writes are blocked until a post-delay On confirmation', async t => {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+- Log successful HomeKit On/Off/native Reboot command acceptance and power-aware no-op requests at info level, identifying the PDU and outlet.
+- Log confirmed power-aware recovery once and warn when its verification window expires. Uncertain commands never log acceptance or an invented reboot success.
+- Add debug-only HomeKit read results, cache/shared-refresh diagnostics, source-labelled status requests, and successful startup/polling checks.
+- Guard informational and debug logging so a failing logger cannot change an accepted hardware action into a reported failure or trigger a retry.
+- Document logging levels and add regression tests for success, uncertainty, no-ops, recovery, and unchanged session counts.
+
 ## 0.1.1
 
 - Fixed unhandled status callback failures that could leave requests unresolved. Both synchronous exceptions and rejected callback promises are isolated, logged safely, and do not block other outlets or turn successful operations into PDU failures.

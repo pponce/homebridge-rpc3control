@@ -65,7 +65,10 @@ export class Rpc3Platform implements DynamicPlatformPlugin {
     }
     const wanted = new Set<string>();
     for (const pdu of pdus) {
-      const controller = new PduController(pdu, undefined, message => this.log.error(`[${pdu.name}] ${message}`));
+      const controller = new PduController(pdu, undefined,
+        message => this.log.error(`[${pdu.name}] ${message}`),
+        message => this.log.debug(`[${pdu.name}] ${message}`),
+      );
       this.controllers.push(controller);
       controller.subscribe((_status, error) => {
         if (error) this.report(`[${pdu.name}] PDU operation failed`, error);

@@ -191,3 +191,104 @@ test('shutdown continues disposing other resources if one handler throws', () =>
   assert.equal(stopped, 1);
   assert.equal(disposed, 1);
 });
+
+function captureLogs() {
+  const records = [];
+  const logger = Object.fromEntries(['info', 'warn', 'error', 'debug'].map(level => [level, message => records.push({ level, message })]));
+  return { records, logger };
+}
+
+test('power actions log acceptance at info while HomeKit reads and cache hits stay at debug', async t => {
+  const server = await fakePdu();
+  const { records, logger } = captureLogs();
+  const controller = new PduController(config(server.port), undefined, logger.error, logger.debug);
+  const { api } = fakeApi();
+  const handler = new OutletAccessory(api, logger, new FakeAccessory('Desk', 'desk'), controller, { number: 1, name: 'Desk', mode: 'power' });
+  t.after(() => { handler.dispose(); controller.stop(); }); t.after(() => server.close());
+  assert.equal(await handler.getOn(), true);
+  assert.equal(await handler.getOn(), true);
+  assert.equal(server.sessions, 1, 'logging must not add status requests');
+  assert.ok(records.every(record => record.level === 'debug'));
+  assert.ok(records.some(record => record.message.includes('Status read (HomeKit): cache hit')));
+  assert.ok(records.some(record => record.message.includes('HomeKit state read returned On')));
+  await handler.setOn(false);
+  await handler.setOn(true);
+  await controller.getStatus();
+  assert.deepEqual(server.commands, ['off 1', 'on 1']);
+  const info = records.filter(record => record.level === 'info').map(record => record.message);
+  assert.deepEqual(info, [
+    '[Test] Outlet 1 (Desk): HomeKit Off request: Off command accepted by PDU.',
+    '[Test] Outlet 1 (Desk): HomeKit On request: On command accepted by PDU.',
+  ]);
+  assert.ok(records.every(record => !record.message.includes('secret') && !record.message.includes('admin')));
+});
+
+test('reboot logs no-ops, native command acceptance and exactly one confirmed recovery', async t => {
+  const server = await fakePdu({ rebootMs: 40 });
+  const { records, logger } = captureLogs();
+  const controller = new PduController(config(server.port), undefined, logger.error, logger.debug);
+  const { api } = fakeApi();
+  const handler = new OutletAccessory(api, logger, new FakeAccessory('Router', 'router'), controller,
+    { number: 1, name: 'Router', mode: 'reboot', resetAfterMs: 100 });
+  t.after(() => { handler.dispose(); controller.stop(); }); t.after(() => server.close());
+  await handler.setOn(true); // Already On.
+  await handler.setOn(false);
+  await new Promise(resolve => setTimeout(resolve, 250));
+  await handler.getOn();
+  await handler.getOn();
+  const info = records.filter(record => record.level === 'info').map(record => record.message);
+  assert.equal(info.length, 3);
+  assert.match(info[0], /already On; no power command needed/);
+  assert.match(info[1], /native Reboot command accepted by PDU/);
+  assert.match(info[2], /Reboot request recovery: outlet power confirmed On/);
+  assert.deepEqual(server.commands, ['reboot 1']);
+  assert.ok(records.some(record => record.level === 'debug' && record.message.includes('Status read (recovery)')));
+});
+
+test('uncertain reboot is warned about without logging acceptance or premature recovery', async t => {
+  const server = await fakePdu({ rebootMs: 40, disconnectOnReboot: true });
+  const { records, logger } = captureLogs();
+  const controller = new PduController(config(server.port), undefined, logger.error, logger.debug);
+  const { api } = fakeApi();
+  const handler = new OutletAccessory(api, logger, new FakeAccessory('Router', 'router'), controller,
+    { number: 1, name: 'Router', mode: 'reboot', resetAfterMs: 100 });
+  t.after(() => { handler.dispose(); controller.stop(); }); t.after(() => server.close());
+  await assert.rejects(handler.setOn(false), { hapStatus: -70402 });
+  await new Promise(resolve => setTimeout(resolve, 150));
+  assert.equal(records.filter(record => record.level === 'info').length, 0);
+  assert.ok(records.some(record => record.level === 'warn' && record.message.includes('UNCERTAIN')));
+  assert.deepEqual(server.commands, ['reboot 1']);
+});
+
+test('a throwing success logger does not turn an accepted command into failure or retry it', async t => {
+  t.mock.method(console, 'error', () => {});
+  const server = await fakePdu();
+  const controller = new PduController(config(server.port));
+  const { api } = fakeApi();
+  const handler = new OutletAccessory(api, { ...log, info() { throw new Error('private logger sentinel'); } },
+    new FakeAccessory('Desk', 'desk'), controller, { number: 1, name: 'Desk', mode: 'power' });
+  t.after(() => { handler.dispose(); controller.stop(); }); t.after(() => server.close());
+  await assert.doesNotReject(handler.setOn(false));
+  await controller.getStatus();
+  assert.deepEqual(server.commands, ['off 1']);
+});
+
+test('an Off reboot outlet logs an Off no-op, then an accepted On command and On recovery', async t => {
+  const server = await fakePdu();
+  server.states.set(1, false);
+  const { records, logger } = captureLogs();
+  const controller = new PduController(config(server.port));
+  const { api } = fakeApi();
+  const handler = new OutletAccessory(api, logger, new FakeAccessory('Router', 'router'), controller,
+    { number: 1, name: 'Router', mode: 'reboot', resetAfterMs: 100 });
+  t.after(() => { handler.dispose(); controller.stop(); }); t.after(() => server.close());
+  await handler.setOn(false);
+  await handler.setOn(true);
+  await new Promise(resolve => setTimeout(resolve, 250));
+  const info = records.filter(record => record.level === 'info').map(record => record.message);
+  assert.equal(info.length, 3);
+  assert.match(info[0], /already Off; no power command needed/);
+  assert.match(info[1], /On command accepted by PDU/);
+  assert.match(info[2], /On request recovery: outlet power confirmed On/);
+  assert.deepEqual(server.commands, ['on 1']);
+});

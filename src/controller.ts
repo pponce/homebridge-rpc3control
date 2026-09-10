@@ -1,5 +1,5 @@
 import type { PduConfig } from './config.js';
-import { PduError, reportError } from './errors.js';
+import { PduError, reportError, safeError, writeLog } from './errors.js';
 import type { ErrorReporter } from './errors.js';
 import { RpcProtocol } from './protocol.js';
 import type { Action, StatusMap } from './protocol.js';
@@ -14,6 +14,7 @@ interface Job {
 }
 
 export type StatusListener = (status: StatusMap | undefined, error?: unknown) => void | Promise<void>;
+export type ReadSource = 'HomeKit' | 'polling' | 'startup' | 'recovery' | 'verification' | 'internal';
 export interface Protocol {
   execute(signal: AbortSignal, action?: Action, outlet?: number): Promise<StatusMap | undefined>;
 }
@@ -35,7 +36,7 @@ export class PduController {
   private listeners = new Set<StatusListener>();
   private report: ErrorReporter;
 
-  constructor(config: PduConfig, protocol: Protocol = new RpcProtocol(config), report: ErrorReporter = console.error) {
+  constructor(config: PduConfig, protocol: Protocol = new RpcProtocol(config), report: ErrorReporter = console.error, private debug: ErrorReporter = () => {}) {
     this.config = config;
     this.protocol = protocol;
     this.report = report;
@@ -60,11 +61,13 @@ export class PduController {
 
   private invalidate(): void { this.cachedAt = 0; this.generation++; }
 
-  async getStatus(force = false): Promise<StatusMap> {
+  async getStatus(force = false, source: ReadSource = 'internal'): Promise<StatusMap> {
     if (this.stopped) throw new PduError('STOPPED', 'PDU controller is stopped');
     if (!force && this.cache && this.cachedAt > 0 && Date.now() - this.cachedAt < this.config.cacheTtlMs) {
+      writeLog(this.debug, `Status read (${source}): cache hit.`);
       return this.cache;
     }
+    writeLog(this.debug, `Status read (${source}): ${this.refresh ? 'joining pending refresh' : 'requesting fresh PDU status'}.`);
     const promise = this.refresh ?? this.enqueue(undefined, undefined, this.generation).then(result => {
       if (!result) throw new PduError('PROTOCOL', 'Status request returned no data');
       return result;
@@ -72,15 +75,22 @@ export class PduController {
     this.refresh = promise;
     let result: StatusMap;
     try { result = await promise; }
+    catch (error) {
+      writeLog(this.debug, `Status read (${source}) failed: ${safeError(error)}`);
+      throw error;
+    }
     finally { if (this.refresh === promise) this.refresh = undefined; }
     // A write queued during an active read invalidates that snapshot. Coalesce again
     // after the write rather than serving a response from before the requested action.
-    if (this.cache !== result || this.cachedAt === 0) return this.getStatus(true);
+    if (this.cache !== result || this.cachedAt === 0) {
+      writeLog(this.debug, `Status read (${source}): snapshot invalidated by an action; refreshing.`);
+      return this.getStatus(true, source);
+    }
     return result;
   }
 
-  async getOutlet(number: number): Promise<boolean> {
-    const status = (await this.getStatus()).get(number);
+  async getOutlet(number: number, source: ReadSource = 'internal'): Promise<boolean> {
+    const status = (await this.getStatus(false, source)).get(number);
     if (!status) throw new PduError('PROTOCOL', 'Requested outlet was absent from the status response');
     return status.on;
   }
@@ -95,7 +105,7 @@ export class PduController {
       return result === undefined; // Status map means a confirmed no-op.
     } finally {
       // One deferred refresh, shared by all waiting HomeKit reads; never retry the write.
-      if (!this.stopped && action !== 'ensure-on' && action !== 'reboot-if-on') void this.getStatus(true).catch(() => {});
+      if (!this.stopped && action !== 'ensure-on' && action !== 'reboot-if-on') void this.getStatus(true, 'verification').catch(() => {});
     }
   }
 
@@ -147,6 +157,7 @@ export class PduController {
             this.cachedAt = Date.now();
             this.notify(result);
           }
+          if (!job.action && result) writeLog(this.debug, `PDU status refresh succeeded: ${result.size} outlet state(s).`);
           job.resolve(result);
         } catch (error) {
           this.cachedAt = 0;
@@ -170,8 +181,15 @@ export class PduController {
 
   startPolling(offsetMs = 0): void {
     if (this.stopped || this.pollTimer || !this.config.outlets.length) return;
+    let initial = true;
     const poll = async () => {
-      try { await this.getStatus(true); } catch { /* Failure is reported through subscriptions. */ }
+      const source = initial ? 'startup' : 'polling';
+      initial = false;
+      writeLog(this.debug, `${source === 'startup' ? 'Startup status check' : 'Polling status check'} started.`);
+      try {
+        await this.getStatus(true, source);
+        writeLog(this.debug, `${source === 'startup' ? 'Startup status check' : 'Polling status check'} succeeded.`);
+      } catch { /* Failure is reported through subscriptions and read diagnostics. */ }
       if (!this.stopped && this.config.pollingIntervalMs > 0) {
         const delay = Math.max(this.config.pollingIntervalMs, this.retryAt - Date.now());
         this.pollTimer = setTimeout(run, delay);
