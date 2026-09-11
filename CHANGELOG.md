@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fix Homebridge night-mode contrast for custom settings text, fields, help, tables, and buttons. Follow Homebridge's selected theme even when the operating system uses a different appearance.
+- Add browser checks for light/night theme switching, text and field-border contrast, and mobile layout.
+
 ## 0.1.2
 
 - Log successful HomeKit On/Off/native Reboot command acceptance and power-aware no-op requests at info level, identifying the PDU and outlet.
