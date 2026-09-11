@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { chromium } from 'playwright';
 import { parseConfig } from '../dist/config.js';
 import { config } from './fake-pdu.mjs';
+import themeFixture from './theme-fixture.cjs';
 
 test('settings UI preserves config, controls visibility, previews safely and fits mobile', { timeout: 60000 }, async t => {
   const fixture = [{ platform: 'Rpc3Control', name: 'RPC PDU Control', _bridge: { username: 'AA:BB:CC:DD:EE:FF' }, future: { keep: true }, pdus: [config(23, { id: 'rack', name: 'Main rack', resetAfterMs: 1250 })] }];
@@ -94,6 +95,7 @@ test('settings UI preserves config, controls visibility, previews safely and fit
   assert.equal(await first.locator('.rpc-preview img').count(), 0);
   assert.ok((await first.locator('.rpc-preview').textContent()).includes('Unknown'));
   await mkdir('test-results', { recursive: true });
+  await themeFixture.checkThemeContrast(page, '.rpc-settings', 'test-results/settings');
   await page.screenshot({ path: 'test-results/settings-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.screenshot({ path: 'test-results/settings-mobile.png', fullPage: true });
