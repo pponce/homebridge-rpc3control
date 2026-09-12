@@ -26,7 +26,7 @@ Requires Homebridge 1.8+ within version 1, or Homebridge 2.x, with Node.js 22.13
 
 1. Open **Plugins** and search for **homebridge-rpc3control**.
 2. Install **RPC PDU Control** using the default **latest** version. If you previously installed a beta, use the plugin menu's **Manage Version** option (called **Install Previous Version** in some older UI versions) and select **latest** to switch to the stable release.
-3. Open the plugin's **Settings**, configure your PDUs and outlets, and save.
+3. Open the plugin's **Config**, configure your PDUs and outlets, and save.
 4. Restart Homebridge through its UI.
 
 If the package does not appear in search yet, install it using the terminal command below, then return to the UI to configure it.
@@ -46,7 +46,7 @@ When using a Homebridge UI terminal that already has the required privileges, om
 
 ## Configuration
 
-Open **RPC PDU Control → Settings** in Homebridge UI:
+Navigate to **RPC PDU Control → Plugin Config** in Homebridge UI:
 
 1. **Add PDU**, give it a name, and enter its IP address and total physical outlet count.
 2. Expand **Login credentials** if your PDU requires them.
