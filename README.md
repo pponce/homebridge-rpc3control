@@ -44,8 +44,6 @@ sudo hb-service start
 
 When using a Homebridge UI terminal that already has the required privileges, omit `sudo`. If your installation does not support `hb-service add`, use Homebridge UI's plugin installer. This command does not restart Homebridge: check the installation output, then configure and restart through the UI.
 
-Use the same command to update to the newest stable release or switch from a beta to stable. To install a specific release, replace `@latest` with its full version, for example `@0.1.0`. Save your configuration and restart Homebridge after updating.
-
 ## Configuration
 
 Open **RPC PDU Control → Settings** in Homebridge UI:
