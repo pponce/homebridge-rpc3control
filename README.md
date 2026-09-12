@@ -36,18 +36,10 @@ If the package does not appear in search yet, install it using the terminal comm
 For a Linux Homebridge installation managed by `hb-service`, run this in a terminal on the Homebridge host. It installs the package from npm into Homebridge's plugin location. You do not need an npm account to install it.
 
 ```bash
-{
-  echo "===== START: INSTALL RPC PDU CONTROL ====="
-  if bash -c '
-set -e
-set -o pipefail
-sudo hb-service add homebridge-rpc3control@latest
-'; then
-    echo "===== END: INSTALL COMMAND FINISHED; CHECK OUTPUT, THEN CONFIGURE AND RESTART IN HOMEBRIDGE UI ====="
-  else
-    echo "===== END: INSTALL STOPPED; SEE ERROR ABOVE; SSH SESSION REMAINS OPEN ====="
-  fi
-}
+sudo hb-service stop
+sudo hb-service add homebridge-rpc3control
+sudo hb-service sstart
+
 ```
 
 When using a Homebridge UI terminal that already has the required privileges, omit `sudo`. If your installation does not support `hb-service add`, use Homebridge UI's plugin installer. This command does not restart Homebridge: check the installation output, then configure and restart through the UI.
