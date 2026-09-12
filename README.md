@@ -38,7 +38,7 @@ For a Linux Homebridge installation managed by `hb-service`, run this in a termi
 ```bash
 sudo hb-service stop
 sudo hb-service add homebridge-rpc3control
-sudo hb-service sstart
+sudo hb-service start
 
 ```
 
