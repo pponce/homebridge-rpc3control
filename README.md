@@ -159,12 +159,6 @@ The HomeKit switch returns to **On when a subsequent status read confirms power 
 
 After an accepted or uncertain action, the plugin waits for the configured **Recovery check delay** (default 3 seconds), then performs read-only verification. Further checks become less frequent if the device is unavailable and stop after at most ten minutes beyond the initial delay. Recovery works with regular polling disabled and stops when On is confirmed. Repeated/opposite writes are rejected while the action is pending or recovery is active, so an extra tap cannot interrupt the native cycle. After the recovery window expires, background recovery stops and a later user request checks fresh state again. Timers never send power commands.
 
-### Upgrading from beta.1
-
-**Stable releases retain the power-aware behavior introduced in beta.2.** If you are upgrading directly from beta.1, the stored mode remains `reboot`, preserving accessory identity, but an existing reboot switch now displays power state and reboots on an **Off** request while the outlet is On. Update any Siri phrases, scenes, or automations that previously requested On to reboot.
-
-The legacy JSON key `resetAfterMs` is retained, but now means **delay before checking recovery**, not a forced display reset. Its UI label is “Recovery check delay.” After restart, both modes discover real state; no saved reboot request is replayed.
-
 ## Logging
 
 Normal Homebridge logs show accepted On/Off/native Reboot commands, power-aware requests that need no change, and a single confirmation when power is observed On after a power-aware action. Messages identify the configured PDU, outlet number, and outlet name. HomeKit requests include taps, Siri, scenes, and automations; the plugin does not identify which person or Home app initiated them.
