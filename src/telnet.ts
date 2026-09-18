@@ -93,7 +93,8 @@ export class TelnetTransport implements Transport {
     this.abort = () => this.fail(new PduError('TIMEOUT', 'Session cancelled or operation deadline exceeded'));
     signal.addEventListener('abort', this.abort, { once: true });
     this.socket.on('data', data => {
-      this.buffer += this.utf8.write(this.decoder.decode(data));
+      const chunk = typeof data === 'string' ? Buffer.from(data) : data;
+      this.buffer += this.utf8.write(this.decoder.decode(chunk));
       if (this.buffer.length > 65536) this.fail(new PduError('PROTOCOL', 'Device response exceeded 64 KiB'));
       else this.wake?.();
     });
